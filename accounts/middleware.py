@@ -36,5 +36,5 @@ class OnlineStatusMiddleware:
             except (TypeError, ValueError):
                 pass
 
-        Profile.objects.filter(pk=request.user.pk).update(last_seen=now)
+        Profile.objects.filter(user_id=request.user.pk).update(last_seen=now)
         request.session[stamp_key] = now.isoformat()
