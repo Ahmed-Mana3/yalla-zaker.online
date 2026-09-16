@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% load studytags %}
+{% block title %}{{ course.title }} · yalla zaker{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel-title detail-head" style="margin-bottom:18px">
+    <div>
+      <a href="{% url 'courses' %}" class="section-meta">&larr; All courses</a>
+      <h1 style="margin-top:4px">
+        {{ course.title }}
+      </h1>
+      {% if course.link %}
+      <a class="btn-ext" href="{{ course.link }}" target="_blank" rel="noopener" aria-label="Try the course">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          <polyline points="15 3 21 3 21 9"/>
+          <line x1="10" y1="14" x2="21" y2="3"/>
+        </svg>
+        Try the course
+      </a>
+      {% endif %}
+    </div>
+    <div style="display:flex; gap:10px">
+      <a class="btn btn-ghost btn-sm" href="{% url 'course_edit' slug=course.slug %}">Edit</a>
+      <a class="btn btn-danger btn-sm" href="{% url 'course_delete' slug=course.slug %}">Delete</a>
+    </div>
+  </div>
+
+  <div class="grid grid-main">
+    <div class="panel">
+      <div class="panel-title"><h2>Progress</h2></div>
+      <div class="bar" style="height:10px"><i style="width: {% if course.progress %}{{ course.progress }}{% else %}0{% endif %}%"></i></div>
+      <div style="display:flex; justify-content:space-between; margin:10px 0 18px">
+        <span class="mono">{{ course.credits|hours }} / {{ course.total_hours|hours }}</span>
+        <span class="section-meta">{{ course.progress|default:0 }}%</span>
+      </div>
+
+      <h3>Share this course</h3>
+      <p class="section-meta">Anyone with the link can see it — no login needed.</p>
+      {% if course.is_public %}
+        <div class="field" style="display:flex; gap:8px">
+          <input type="text" readonly value="{{ request.scheme }}://{{ request.get_host }}{% url 'public:course_public' slug=course.slug %}"
+                 onfocus="this.select()" style="flex:1; min-width:0">
+          <button type="button" class="copy-btn"
+                  data-copy="{{ request.scheme }}://{{ request.get_host }}{% url 'public:course_public' slug=course.slug %}"
+                  data-label="Copy"
+                  data-copied-label="Copied"
+                  aria-label="Copy public course link">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            <span class="copy-label">Copy</span>
+          </button>
+        </div>
+      {% else %}
+        <p class="section-meta">Link sharing is off. Turn on “Shareable by link” in Edit to publish it.</p>
+      {% endif %}
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:18px">
+      <div class="panel">
+        <div class="panel-title"><h2>Facts</h2></div>
+        <ul class="subtle-list">
+          <li>Started <strong>{{ course.start_date|date:'M j, Y' }}</strong></li>
+          <li>{{ course.total_hours|hours }} course —
+            {% if course.end_date %}
+              <strong>completed {{ course.end_date|date:'M j, Y' }}</strong>
+            {% else %}
+              ends itself once <strong>{{ course.remaining_hours|hours }} more</strong> are logged
+            {% endif %}
+          </li>
+          <li>Status
+            {% if course.is_active_course %}<span class="tag tag-ok">on the desk</span>
+            {% else %}<span class="tag tag-danger">completed</span>{% endif %}
+          </li>
+        </ul>
+      </div>
+      {% if course.notes %}
+      <div class="panel">
+        <div class="panel-title"><h2>Notes</h2></div>
+        <p class="section-meta" style="white-space:pre-line">{{ course.notes }}</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if sessions %}
+  <div class="panel" style="margin-top:18px">
+    <div class="panel-title"><h2>Logged sessions</h2></div>
+    <ul class="subtle-list">
+      {% for s in sessions %}
+      <li style="display:flex; justify-content:space-between; gap:12px">
+        <span>{{ s.started_at|date:'M j, H:i' }} → {{ s.ended_at|date:'H:i' }}</span>
+        <span class="mono">{{ s.duration_seconds|dur }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

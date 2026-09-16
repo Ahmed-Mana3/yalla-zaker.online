@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load studytags %}
+{% block title %}{{ roadmap.title }} · Roadmap · yalla zaker{% endblock %}
+{% block meta_description %}{{ roadmap.title }} — a shared study roadmap on yalla zaker. {{ roadmap.step_count }} steps toward one goal.{% endblock %}
+{% block og_title %}{{ roadmap.title }} · yalla zaker{% endblock %}
+{% block og_description %}{{ roadmap.title }} — a shared study roadmap. {{ roadmap.step_count }} steps toward one goal.{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="rm-public-panel">
+
+    {# ── hero ── #}
+    <div class="rm-public-hero">
+      <div class="rm-public-author">
+        <span class="avatar avatar-30" style="--hue: {{ roadmap.owner.id|add:10 }}" aria-hidden="true">{{ roadmap.owner.username|first|upper }}</span>
+        <span class="section-meta">{{ roadmap.owner.username }}'s roadmap</span>
+      </div>
+      <h1>{{ roadmap.title }}</h1>
+      {% if roadmap.description %}<p class="rm-public-desc">{{ roadmap.description }}</p>{% endif %}
+      <div class="rm-public-stats">
+        <span class="rm-stat-pill mono">{{ roadmap.step_count }} step{{ roadmap.step_count|pluralize }}</span>
+        {% if total_hours %}<span class="rm-stat-pill mono">{{ total_hours|hours }} planned</span>{% endif %}
+        {% if roadmap.progress %}<span class="rm-stat-pill rm-stat-progress mono">{{ roadmap.progress }}% walked</span>{% endif %}
+      </div>
+    </div>
+
+    {# ── route ── #}
+    {% if steps %}
+    <ol class="roadmap-steps is-public" style="list-style:none; margin:0; padding:0">
+      {% for step in steps %}
+      <li class="roadmap-step" data-step-id="{{ step.id }}">
+        <div class="rm-rail">
+          <span class="rm-index mono">{{ forloop.counter }}</span>
+        </div>
+        <div class="rm-body">
+          <div class="rm-row">
+            <div class="rm-title-wrap">
+              {% if step.link %}
+              <a class="rm-title" href="{{ step.link }}" target="_blank" rel="noopener">
+                {{ step.display_title }}
+                <span class="rm-ext" aria-hidden="true">&nearr;</span>
+              </a>
+              {% else %}
+              <span class="rm-title">{{ step.display_title }}</span>
+              {% endif %}
+            </div>
+            <div class="rm-facts">
+              {% if step.link %}
+              <a class="btn-ext" href="{{ step.link }}" target="_blank" rel="noopener" aria-label="Visit {{ step.display_title }}">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                  <polyline points="15 3 21 3 21 9"/>
+                  <line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+                Course page
+              </a>
+              {% endif %}
+              {% if step.planned_hours %}
+              <span class="rm-fact mono">{{ step.planned_hours|hours }}</span>
+              {% endif %}
+            </div>
+          </div>
+          {% if step.is_trackable %}
+          <div class="bar rm-bar"><i style="width:{% if step.course_progress %}{{ step.course_progress }}{% else %}0{% endif %}%"></i></div>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+    {% endif %}
+
+    {# ── cta card ── #}
+    <div class="rm-public-cta">
+      <div class="rm-public-cta-text">
+        <strong>Walk this same path.</strong>
+        <p class="section-meta">Clone it, make it yours, and track your own progress through these courses.</p>
+      </div>
+      {% if request.user.is_authenticated %}
+      <form method="post" action="{% url 'roadmap_clone' slug=roadmap.slug %}">
+        {% csrf_token %}
+        <button class="btn btn-primary" type="submit">Clone this roadmap</button>
+      </form>
+      {% else %}
+      <a class="btn btn-primary" href="{% url 'signup' %}">Sign up and clone</a>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

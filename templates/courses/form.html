@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}{{ heading }} · yalla zaker{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel form-card">
+    <h1>{{ heading }}</h1>
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="field-errors">{{ form.non_field_errors }}</div>{% endif %}
+
+      <div class="field">
+        <label for="{{ form.title.id_for_label }}">Course title</label>
+        {{ form.title }}
+        {% if form.title.errors %}<div class="field-errors">{{ form.title.errors }}</div>{% endif %}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.link.id_for_label }}">Course link</label>
+        {{ form.link }}
+        {% if form.link.errors %}<div class="field-errors">{{ form.link.errors }}</div>{% endif %}
+      </div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="{{ form.start_date.id_for_label }}">Start date</label>
+          {{ form.start_date }}
+          {% if form.start_date.errors %}<div class="field-errors">{{ form.start_date.errors }}</div>{% endif %}
+        </div>
+        <div class="field">
+          <label for="{{ form.total_hours.id_for_label }}">Course hours</label>
+          {{ form.total_hours }}
+          <div class="help-text">Total hours the course needs.</div>
+        </div>
+      </div>
+      <p class="help-text">The end date and the hours done are decided by the system — your study sessions feed the clock, and the course ends itself once that's done.</p>
+
+      <div class="field">
+        <label for="{{ form.notes.id_for_label }}">Notes</label>
+        {{ form.notes }}
+        {% if form.notes.errors %}<div class="field-errors">{{ form.notes.errors }}</div>{% endif %}
+      </div>
+
+      <label class="checkbox-row">
+        {{ form.is_public }} Shareable by link
+      </label>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">{% if course %}Save changes{% else %}Add course{% endif %}</button>
+        <a class="btn btn-ghost" href="{% url 'courses' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

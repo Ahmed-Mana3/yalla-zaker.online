@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}This course isn't yours · yalla zaker{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel" style="max-width:480px; margin:0 auto; text-align:center">
+    <div class="eyebrow">Course not available</div>
+    <h1 style="margin-top:6px">This course belongs to another account.</h1>
+    <p class="section-meta" style="margin:8px 0 20px">
+      “{{ course.title }}” is private to {{ course.owner.username }}, so you can't open it.
+      Want to study the same material? Add it to your own desk instead.
+    </p>
+    <div style="display:flex; gap:10px; justify-content:center">
+      <a class="btn btn-primary btn-sm" href="{% url 'course_create' %}">Add your own course</a>
+      <a class="btn btn-ghost btn-sm" href="{% url 'courses' %}">My courses</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

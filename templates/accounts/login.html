@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Log in · yalla zaker{% endblock %}
+{% block meta_description %}Back on the desk — log in to yalla zaker to run study sessions, track course hours, and stay accountable with friends.{% endblock %}
+{% block body %}
+<div>
+  <div class="panel form-card">
+    <h1>Back on the desk</h1>
+    {% if form.non_field_errors %}
+      <div class="field-errors">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+      <div class="field">
+        <label for="id_username">Username</label>
+        <input type="text" name="username" autofocus autocapitalize="none" autocomplete="username" id="id_username" required>
+      </div>
+      <div class="field">
+        <label for="id_password">Password</label>
+        <input type="password" name="password" autocomplete="current-password" id="id_password" required>
+      </div>
+      <button class="btn btn-primary" type="submit">Log in</button>
+    </form>
+    <p class="section-meta" style="margin-top:16px">
+      No desk yet? <a href="{% url 'signup' %}">Create one.</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

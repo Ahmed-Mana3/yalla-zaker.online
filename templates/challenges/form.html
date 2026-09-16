@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Start a challenge · yalla zaker{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel form-card">
+    <h1>Start a challenge</h1>
+    <p class="section-meta">The score is the longest single non-stop session. Everyone who joins gets ranked.</p>
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="field-errors">{{ form.non_field_errors }}</div>{% endif %}
+
+      <div class="field">
+        <label for="{{ form.title.id_for_label }}">Name</label>
+        {{ form.title }}
+        {% if form.title.errors %}<div class="field-errors">{{ form.title.errors }}</div>{% endif %}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.description.id_for_label }}">Rules</label>
+        {{ form.description }}
+        {% if form.description.errors %}<div class="field-errors">{{ form.description.errors }}</div>{% endif %}
+      </div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="{{ form.starts_at.id_for_label }}">Start date</label>
+          {{ form.starts_at }}
+          {% if form.starts_at.errors %}<div class="field-errors">{{ form.starts_at.errors }}</div>{% endif %}
+        </div>
+        <div class="field">
+          <label for="{{ form.ends_at.id_for_label }}">End date</label>
+          {{ form.ends_at }}
+          {% if form.ends_at.errors %}<div class="field-errors">{{ form.ends_at.errors }}</div>{% endif %}
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Create challenge</button>
+        <a class="btn btn-ghost" href="{% url 'challenges' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

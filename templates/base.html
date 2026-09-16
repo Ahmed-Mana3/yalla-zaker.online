@@ -1,0 +1,110 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10141C">
+  <title>{% block title %}yalla zaker{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}yalla zaker turns your courses into a clock, your friends into witnesses, and your study sessions into something you don't want to lose.{% endblock %}">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="{{ canonical_site }}{{ canonical_path }}">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%2310141C'/%3E%3Ccircle cx='8' cy='8' r='3.5' fill='%23F5A524'/%3E%3C/svg%3E">
+
+  <!-- Open Graph -->
+  <meta property="og:site_name" content="yalla zaker">
+  <meta property="og:title" content="{% block og_title %}yalla zaker{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}yalla zaker turns your courses into a clock, your friends into witnesses, and your study sessions into something you don't want to lose.{% endblock %}">
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+  <meta property="og:url" content="{{ canonical_site }}{{ canonical_path }}">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="yalla zaker">
+  <meta name="twitter:description" content="yalla zaker turns your courses into a clock, your friends into witnesses, and your study sessions into something you don't want to lose.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "yalla zaker",
+    "description": "A focused-studying web app: courses, a study clock, friend presence and challenges.",
+    "url": "{{ canonical_site }}/"
+  }
+  </script>
+
+  {% block head %}{% endblock %}
+</head>
+<body class="{% if not request.user.is_authenticated %}guest-body{% endif %}">
+  {% if request.user.is_authenticated %}
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="{% url 'dashboard' %}">
+        <span class="brand-mark" aria-hidden="true"></span>
+        yalla&nbsp;zaker
+      </a>
+      <nav class="mainnav" aria-label="Main">
+        <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">Desk</a>
+        <a href="{% url 'courses' %}" class="{% if request.resolver_match.app_name == 'courses' and request.resolver_match.url_name != 'roadmaps' and request.resolver_match.url_name|slice:':8' != 'roadmap_' %}is-active{% endif %}">Courses</a>
+        <a href="{% url 'roadmaps' %}" class="{% if request.resolver_match.url_name == 'roadmaps' or request.resolver_match.url_name|slice:':8' == 'roadmap_' %}is-active{% endif %}">Roadmaps</a>
+        <a href="{% url 'study' %}" class="{% if request.resolver_match.namespace == 'study' or request.resolver_match.url_name == 'study' %}is-active{% endif %}">Study</a>
+        <a href="{% url 'friends' %}" class="{% if request.resolver_match.url_name == 'friends' %}is-active{% endif %}">Friends</a>
+        <a href="{% url 'challenges' %}" class="{% if request.resolver_match.app_name == 'challenges' %}is-active{% endif %}">Challenges</a>
+      </nav>
+      <div class="topbar-right">
+        <a class="user-chip" href="{% url 'profile' username=request.user.username %}">
+          {% include 'partials/avatar.html' with u=request.user size=30 %}
+          <span class="user-chip-name">{{ request.user.username }}</span>
+        </a>
+        <form action="{% url 'logout' %}" method="post">
+          {% csrf_token %}
+          <button type="submit" class="linklike">Log out</button>
+        </form>
+      </div>
+    </div>
+  </header>
+  {% else %}
+  <header class="topbar topbar-guest">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="{% url 'home' %}">
+        <span class="brand-mark" aria-hidden="true"></span>
+        yalla&nbsp;zaker
+      </a>
+      <div class="topbar-right">
+        <a href="{% url 'login' %}" class="btn btn-ghost btn-sm">Log in</a>
+        <a href="{% url 'signup' %}" class="btn btn-primary btn-sm">Start studying</a>
+      </div>
+    </div>
+  </header>
+  {% endif %}
+
+  {% if messages %}
+  <div class="toasts" role="status" aria-live="polite">
+    {% for message in messages %}
+    <div class="toast toast-{{ message.tags|default:'info' }}">
+      <span>{{ message }}</span>
+      <button type="button" class="toast-close" aria-label="Dismiss">&times;</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <main class="{% block mainclass %}page{% endblock %}">
+    {% block body %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <p>yalla zaker — the night desk. Study like it matters.</p>
+    </div>
+  </footer>
+
+  <script src="{% static 'js/app.js' %}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

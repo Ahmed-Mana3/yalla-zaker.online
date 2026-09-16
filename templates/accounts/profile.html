@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load studytags %}
+{% block title %}{{ subject.username }}'s study desk · yalla zaker{% endblock %}
+{% block meta_description %}{{ subject.username }}'s public study desk on yalla zaker — shared courses, progress, and presence on the desk.{% endblock %}
+{% block body %}
+<div class="wrap page profile-page">
+  <div class="panel profile-head">
+    {% include 'partials/avatar.html' with u=subject size=72 %}
+    <div class="grow">
+      <h1>{{ subject.username }}</h1>
+      <p class="section-meta">
+        {% if live %}
+          <span class="tag tag-live">{% if live.status == 'active' %}studying now{% else %}on a break{% endif %}</span>
+          {% if live.course %} · {{ live.course.title }}{% endif %}
+        {% elif is_online %}
+          <span class="tag">online · not studying</span>
+        {% else %}
+          <span class="tag">offline</span>
+        {% endif %}
+      </p>
+    </div>
+    {% if is_self %}
+      <a class="btn btn-ghost btn-sm" href="{% url 'profile_edit' %}">Edit profile</a>
+    {% endif %}
+  </div>
+
+  {% if profile.bio %}
+  <div class="panel">
+    <p style="margin:0">{{ profile.bio }}</p>
+  </div>
+  {% endif %}
+
+  <div class="panel-title">
+    <h2>Public courses</h2>
+    {% if is_self %}<span class="section-meta">only shareable courses are visible to others</span>{% endif %}
+  </div>
+
+  {% if courses %}
+  <div class="grid grid-col">
+    {% for course in courses %}
+    <div class="panel">{% include 'partials/course_card.html' with show_owner=True hide_study_button=True %}</div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">
+    <strong>Nothing public on this desk.</strong>
+    {% if is_self %}
+      <p>Courses you share by link show up here for friends.</p>
+      <a class="btn btn-primary" href="{% url 'course_create' %}">Add a course</a>
+    {% else %}
+      <p>This user hasn't shared any courses.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}{{ heading }} · yalla zaker{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel form-card">
+    <h1>{{ heading }}</h1>
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="field-errors">{{ form.non_field_errors }}</div>{% endif %}
+
+      <div class="field">
+        <label for="{{ form.title.id_for_label }}">Roadmap title</label>
+        {{ form.title }}
+        {% if form.title.errors %}<div class="field-errors">{{ form.title.errors }}</div>{% endif %}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.description.id_for_label }}">Goal (optional)</label>
+        {{ form.description }}
+        <div class="help-text">What does this path lead to? e.g. “Build and ship a web app.”</div>
+        {% if form.description.errors %}<div class="field-errors">{{ form.description.errors }}</div>{% endif %}
+      </div>
+
+      <label class="checkbox-row">
+        {{ form.is_public }} Shareable by link — others can view and clone it
+      </label>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">{% if roadmap %}Save changes{% else %}Create roadmap{% endif %}</button>
+        <a class="btn btn-ghost" href="{% if roadmap %}{% url 'roadmap_detail' slug=roadmap.slug %}{% else %}{% url 'roadmaps' %}{% endif %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

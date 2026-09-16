@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Login-required areas have nothing to crawl.
+Disallow: /admin/
+Disallow: /logout/
+Disallow: /friends/
+Disallow: /profile/
+Disallow: /study/
+Disallow: /courses/
+Disallow: /challenges/create/
+
+Sitemap: {{ canonical_site }}/sitemap.xml

@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Challenges · yalla zaker{% endblock %}
+{% block meta_description %}See who is winning — join or create a study challenge on yalla zaker and race friends to the longest non-stop deep work session.{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel-title" style="margin-bottom:20px">
+    <h1>Challenges</h1>
+    <a class="btn btn-primary btn-sm" href="{% url 'challenge_create' %}">Start a challenge</a>
+  </div>
+
+  {% if active %}
+  <h2 style="margin-bottom:10px">Running now</h2>
+  <div class="grid grid-col">
+    {% for c in active %}
+    <div class="panel">
+      <span class="tag tag-live">live now</span>
+      <h3 style="margin:10px 0 4px">{{ c.title }}</h3>
+      <p class="section-meta">{{ c.starts_at|date:'M j' }} → {{ c.ends_at|date:'M j' }} · {{ c.members.count }} members</p>
+      <a class="btn btn-ghost btn-sm" href="{% url 'challenge_detail' pk=c.pk %}">See the board</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if upcoming %}
+  <h2 style="margin:26px 0 10px">Upcoming</h2>
+  <div class="grid grid-col">
+    {% for c in upcoming %}
+    <div class="panel">
+      <h3 style="margin:0 0 4px">{{ c.title }}</h3>
+      <p class="section-meta">starts {{ c.starts_at|date:'M j, Y' }}</p>
+      <a class="btn btn-ghost btn-sm" href="{% url 'challenge_detail' pk=c.pk %}">Details</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if past %}
+  <h2 style="margin:26px 0 10px">Finished</h2>
+  <div class="grid grid-col">
+    {% for c in past %}
+    <div class="panel">
+      <span class="tag">closed</span>
+      <h3 style="margin:10px 0 4px">{{ c.title }}</h3>
+      <p class="section-meta">ended {{ c.ends_at|date:'M j, Y' }}</p>
+      <a class="btn btn-ghost btn-sm" href="{% url 'challenge_detail' pk=c.pk %}">Results</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if not active and not upcoming and not past %}
+  <div class="empty">
+    <strong>No challenges yet.</strong>
+    <p>Pick a stretch of your semester and race your friends to the longest non‑stop session.</p>
+    <a class="btn btn-primary" href="{% url 'challenge_create' %}">Start the first challenge</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

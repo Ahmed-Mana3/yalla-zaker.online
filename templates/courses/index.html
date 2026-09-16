@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load studytags %}
+{% block title %}Courses · yalla zaker{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel-title" style="margin-bottom:20px">
+    <h1>Courses</h1>
+    <a class="btn btn-primary btn-sm" href="{% url 'course_create' %}">Add a course</a>
+  </div>
+
+  {% if courses %}
+  <div class="grid grid-col">
+    {% for course in courses %}
+    <div class="panel">{% include 'partials/course_card.html' %}</div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">
+    <strong>Your desk is empty.</strong>
+    <p>Add the course you're studying so the clock has a target.</p>
+    <a class="btn btn-primary" href="{% url 'course_create' %}">Add your first course</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

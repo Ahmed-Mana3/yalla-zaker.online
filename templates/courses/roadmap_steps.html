@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+{% load studytags %}
+{% block title %}Edit steps · {{ roadmap.title }} · yalla zaker{% endblock %}
+{% block body %}
+<div class="wrap page rm-studio-wrap">
+  <!-- Studio Header -->
+  <div class="rm-studio-header">
+    <div class="rm-studio-breadcrumbs">
+      <a href="{% url 'roadmaps' %}" class="section-meta">Roadmaps</a>
+      <span class="rm-crumb-sep">/</span>
+      <a href="{% url 'roadmap_detail' slug=roadmap.slug %}" class="section-meta">{{ roadmap.title }}</a>
+      <span class="rm-crumb-sep">/</span>
+      <span class="rm-crumb-curr">Edit steps</span>
+    </div>
+
+    <div class="rm-studio-titlebar">
+      <div>
+        <h1 class="rm-studio-title">{{ roadmap.title }}</h1>
+        {% if roadmap.description %}
+        <p class="section-meta rm-studio-desc">{{ roadmap.description }}</p>
+        {% endif %}
+      </div>
+      <div class="rm-studio-nav-actions">
+        <a class="btn btn-primary btn-sm" href="{% url 'roadmap_detail' slug=roadmap.slug %}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:5px">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Done editing
+        </a>
+        <a class="btn btn-ghost btn-sm" href="{% url 'roadmap_edit' slug=roadmap.slug %}">Settings</a>
+      </div>
+    </div>
+
+    <!-- Live Metrics Strip -->
+    <div class="rm-metrics-strip">
+      <div class="rm-metric-pill">
+        <span class="rm-metric-val mono" id="stat-step-count">{{ steps|length }}</span>
+        <span class="rm-metric-lab">Course{{ steps|length|pluralize }}</span>
+      </div>
+      <div class="rm-metric-pill">
+        <span class="rm-metric-val mono" id="stat-total-hours">{{ total_hours|hours }}</span>
+        <span class="rm-metric-lab">Total planned</span>
+      </div>
+      <div class="rm-metric-status" id="save-status" aria-live="polite">
+        <span class="rm-save-dot"></span>
+        <span class="rm-save-text">All changes saved</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Studio Grid Layout -->
+  <div class="rm-studio-grid">
+    <!-- Left Column: Steps Timeline Canvas -->
+    <section class="rm-studio-main" aria-label="Roadmap course sequence">
+      <div class="panel rm-steps-canvas">
+        <div class="rm-canvas-head">
+          <div>
+            <h2 style="font-size:1.1rem; margin:0 0 4px">Course Sequence</h2>
+            <p class="section-meta" style="margin:0">Drag cards or use arrows to adjust the order. Click any course to edit details.</p>
+          </div>
+          <span class="meta mono" id="canvas-step-counter">{{ steps|length }} course{{ steps|length|pluralize }}</span>
+        </div>
+
+        <ol class="roadmap-steps rm-studio-list" id="roadmap-steps-list" data-reorder-url="{% url 'roadmap_reorder' slug=roadmap.slug %}">
+          {% for step in steps %}
+          <li class="roadmap-step rm-studio-step"
+              data-step-id="{{ step.id }}"
+              draggable="true">
+            <!-- Left Grip & Sequence Rail -->
+            <div class="rm-studio-rail">
+              <button type="button" class="rm-drag-handle" aria-label="Drag to reorder {{ step.display_title }}" title="Drag to reorder">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="9" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/>
+                  <circle cx="15" cy="6" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+                </svg>
+              </button>
+              <span class="rm-index mono">{{ forloop.counter }}</span>
+            </div>
+
+            <!-- Card Content Body -->
+            <div class="rm-studio-card-body">
+              <div class="rm-studio-card-row">
+                <div class="rm-studio-title-group">
+                  {% if step.link %}
+                  <a class="rm-title" href="{{ step.link }}" target="_blank" rel="noopener">
+                    {{ step.display_title }}
+                    <span class="rm-out-icon" title="Open course link">&nearr;</span>
+                  </a>
+                  {% else %}
+                  <span class="rm-title">{{ step.display_title }}</span>
+                  {% endif %}
+
+                  <div class="rm-tags-row">
+                    {% if step.link %}
+                    <a class="rm-link-chip" href="{{ step.link }}" target="_blank" rel="noopener" title="Visit course page">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                      </svg>
+                      Course link
+                    </a>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <!-- Meta / Hours -->
+                <div class="rm-studio-card-meta">
+                  {% if step.planned_hours %}
+                  <span class="rm-fact mono">{{ step.planned_hours|hours }} planned</span>
+                  {% endif %}
+                </div>
+              </div>
+
+              <!-- Action Bar for this Step Card -->
+              <div class="rm-studio-card-toolbar">
+                <div class="rm-toolbar-left">
+                  <button type="button" class="rm-tool-chip rm-toggle-edit-btn" data-target="editor-{{ step.id }}" aria-expanded="false">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                    </svg>
+                    Edit details
+                  </button>
+                </div>
+
+                <div class="rm-toolbar-right">
+                  <button type="button" class="rm-tool-icon rm-move-up-btn" aria-label="Move {{ step.display_title }} up" title="Move up">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+                  </button>
+                  <button type="button" class="rm-tool-icon rm-move-down-btn" aria-label="Move {{ step.display_title }} down" title="Move down">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <button type="button" class="rm-tool-icon rm-remove-trigger" data-target="confirm-del-{{ step.id }}" aria-label="Delete {{ step.display_title }}" title="Remove course">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Inline Delete Confirmation -->
+              <div class="rm-confirm-popover" id="confirm-del-{{ step.id }}" style="display:none">
+                <span class="rm-confirm-text">Remove this course from the roadmap?</span>
+                <div class="rm-confirm-btns">
+                  <form method="post" action="{% url 'roadmap_remove_step' slug=roadmap.slug step_id=step.id %}" class="rm-inline-form rm-delete-step-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'roadmap_steps_edit' slug=roadmap.slug %}">
+                    <button type="submit" class="btn btn-danger btn-sm">Yes, remove</button>
+                  </form>
+                  <button type="button" class="btn btn-ghost btn-sm rm-cancel-del-btn" data-target="confirm-del-{{ step.id }}">Cancel</button>
+                </div>
+              </div>
+
+              <!-- Collapsible Inline Editor Drawer -->
+              <div class="rm-inline-editor" id="editor-{{ step.id }}" style="display:none">
+                <div class="rm-editor-card">
+                  <form method="post" action="{% url 'roadmap_edit_step' slug=roadmap.slug step_id=step.id %}" class="rm-edit-step-form form-stack">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'roadmap_steps_edit' slug=roadmap.slug %}">
+                    
+                    <div class="rm-editor-grid">
+                      <div class="field">
+                        <label for="step-title-{{ step.id }}">Course title</label>
+                        <input id="step-title-{{ step.id }}" name="course_title_override" value="{{ step.course_title_override|default:step.display_title }}" placeholder="e.g. {{ step.display_title }}" required>
+                      </div>
+
+                      <div class="field rm-field-hours">
+                        <label for="step-hours-{{ step.id }}">Planned hours</label>
+                        <input id="step-hours-{{ step.id }}" name="planned_hours" type="number" step="0.5" min="0" value="{{ step.planned_hours|floatformat:-1 }}">
+                      </div>
+
+                      <div class="field rm-field-full">
+                        <label for="step-link-{{ step.id }}">Course link / URL</label>
+                        <input id="step-link-{{ step.id }}" name="link" type="url" value="{{ step.link }}" placeholder="https://… course page or syllabus" required>
+                      </div>
+                    </div>
+
+                    <div class="rm-editor-actions">
+                      <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
+                      <button type="button" class="btn btn-ghost btn-sm rm-close-editor-btn" data-target="editor-{{ step.id }}">Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </li>
+          {% empty %}
+          <li class="rm-empty-state" id="rm-empty-canvas">
+            <div class="rm-empty-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <strong>No courses yet on this roadmap.</strong>
+            <p>Use the form on the right to add your first course to this learning path.</p>
+          </li>
+          {% endfor %}
+        </ol>
+      </div>
+    </section>
+
+    <!-- Right Column: Add Course Sidebar -->
+    <aside class="rm-studio-side" aria-label="Add courses to roadmap">
+      <div class="panel rm-side-panel">
+        <div class="rm-side-panel-header" style="padding:18px 20px 14px; border-bottom:1px solid var(--line)">
+          <h2 style="font-size:1.05rem; margin:0 0 4px">Add course directly</h2>
+          <p class="section-meta" style="margin:0; font-size:0.83rem">
+            Courses in a roadmap belong directly to this path. Enter the title, link, and expected duration.
+          </p>
+        </div>
+
+        <div class="rm-side-panel-body">
+          <form method="post" action="{% url 'roadmap_add_step' slug=roadmap.slug %}" class="form-stack" id="rm-add-custom-form">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'roadmap_steps_edit' slug=roadmap.slug %}">
+
+            <div class="field">
+              <label for="custom-title">Course title <span style="color:var(--red)">*</span></label>
+              <input id="custom-title" name="title" required autocomplete="off" placeholder="e.g. Operating Systems: Three Easy Pieces">
+            </div>
+
+            <div class="field">
+              <label for="custom-link">Course link / URL <span style="color:var(--red)">*</span></label>
+              <input id="custom-link" name="link" type="url" required autocomplete="off" inputmode="url" placeholder="https://ostep.org">
+            </div>
+
+            <div class="field">
+              <label for="custom-hours">Planned hours (optional)</label>
+              <input id="custom-hours" name="planned_hours" type="number" step="0.5" min="0" placeholder="e.g. 25" value="0">
+            </div>
+
+            <div class="form-actions" style="margin-top:6px">
+              <button class="btn btn-primary btn-sm" type="submit" style="width:100%">+ Add course to roadmap</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Quick Help -->
+        <div class="rm-side-help">
+          <span class="eyebrow" style="margin-bottom:6px">Quick Tips</span>
+          <ul class="rm-help-list">
+            <li><strong>Reordering:</strong> Grab the 6-dot handle or use &uarr;&darr; arrows. Order saves automatically.</li>
+            <li><strong>External materials:</strong> Roadmaps can include books, online courses, tutorials, or documentation.</li>
+            <li><strong>Self-contained:</strong> Roadmap courses live directly inside this roadmap.</li>
+          </ul>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+{% endblock %}

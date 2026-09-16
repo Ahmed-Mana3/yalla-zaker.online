@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}Friends · yalla zaker{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel-title" style="margin-bottom:20px">
+    <h1>Friends</h1>
+    <span class="section-meta">witnesses to your focus</span>
+  </div>
+
+  <div class="grid grid-main">
+    <div style="display:flex; flex-direction:column; gap:18px">
+      <div class="panel">
+        <div class="panel-title"><h2>Your friends</h2></div>
+        {% if friends %}
+          {% for row in friends %}
+          <div class="friend-row">
+            <span class="status-dot status-{{ row.status }}" {% if row.status == 'online' %}title="online"{% endif %}></span>
+            <a href="{% url 'profile' username=row.friend.username %}" class="grow name">{{ row.friend.username }}</a>
+            <span class="sub">{% if row.status == 'live' %}studying now{% elif row.status == 'paused' %}on a break{% elif row.status == 'online' %}online{% else %}offline{% endif %}</span>
+            <form method="post" action="{% url 'friend_remove' friend_id=row.friend.id %}">{% csrf_token %}
+              <button class="linklike" type="submit">Remove</button>
+            </form>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="section-meta">No friends yet. Find someone by username below.</p>
+        {% endif %}
+      </div>
+
+      <div class="panel">
+        <div class="panel-title"><h2>Add a friend</h2></div>
+        <form method="get" action="{% url 'friends' %}" class="field" style="display:flex; gap:8px">
+          <input type="text" name="q" value="{{ q }}" placeholder="Search by username…" aria-label="Search by username">
+          <button class="btn btn-ghost" type="submit">Search</button>
+        </form>
+        {% if q %}
+          {% if search %}
+            <ul class="subtle-list" style="margin-top:12px">
+              {% for item in search %}
+              <li style="display:flex; align-items:center; gap:10px">
+                <a href="{% url 'profile' username=item.user.username %}">{{ item.user.username }}</a>
+                <span class="grow"></span>
+                {% if item.conn %}
+                  {% if item.conn.status == 'accepted' %}<span class="tag tag-ok">friends</span>
+                  {% elif item.conn.status == 'pending' and item.conn.from_user == request.user %}<span class="tag">request sent</span>
+                  {% elif item.conn.status == 'pending' %}<span class="tag">waiting on you</span>
+                  {% else %}<span class="tag">declined</span>{% endif %}
+                {% else %}
+                  <form method="post" action="{% url 'friend_request' user_id=item.user.id %}">{% csrf_token %}
+                    <button class="btn btn-primary btn-sm" type="submit">Add friend</button>
+                  </form>
+                {% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="section-meta" style="margin-top:12px">No users match “{{ q }}”.</p>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:18px">
+      {% if incoming %}
+      <div class="panel">
+        <div class="panel-title"><h2>Friend requests</h2></div>
+        {% for fr in incoming %}
+        <div class="friend-row">
+          <a href="{% url 'profile' username=fr.from_user.username %}" class="grow name">{{ fr.from_user.username }}</a>
+          <form method="post" action="{% url 'friend_accept' friendship_id=fr.id %}" style="display:flex; gap:8px">{% csrf_token %}
+            <button class="btn btn-green btn-sm" type="submit">Accept</button>
+            <button class="btn btn-ghost btn-sm" type="submit" formaction="{% url 'friend_decline' friendship_id=fr.id %}">Decline</button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if outgoing %}
+      <div class="panel">
+        <div class="panel-title"><h2>Sent requests</h2></div>
+        {% for fr in outgoing %}
+        <div class="friend-row">
+          <span class="grow name">{{ fr.to_user.username }}</span>
+          <span class="tag">pending</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

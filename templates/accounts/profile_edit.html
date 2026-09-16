@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Edit profile · yalla zaker{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel form-card">
+    <h1>Edit profile</h1>
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+      <div class="field">
+        <label for="{{ form.bio.id_for_label }}">Bio</label>
+        {{ form.bio }}
+        {% if form.bio.errors %}<div class="field-errors">{{ form.bio.errors }}</div>{% endif %}
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Save profile</button>
+        <a class="btn btn-ghost" href="{% url 'profile' username=request.user.username %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

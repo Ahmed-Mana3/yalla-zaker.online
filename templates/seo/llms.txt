@@ -1,0 +1,31 @@
+# yalla zaker
+
+> Turn your courses into a clock, your friends into witnesses, and your study sessions into something you don't want to lose.
+
+yalla zaker is a web app for focused studying. You add the courses you're working on, start a study session ("the lamp") the clock starts, and your friends can watch your sessions go live in real time. Breaks are capped at 30 minutes — go past it and the session is over, keeping what you earned. You can run challenges against friends for the longest non-stop deep work session.
+
+## Key pages
+
+- [Home — start studying]({{ canonical_site }}/)
+- [Sign up — create your desk]({{ canonical_site }}/signup/)
+- [Log in — back on the desk]({{ canonical_site }}/login/)
+- [Challenges — leaderboards and friendly fire]({{ canonical_site }}/challenges/)
+
+## Features
+
+- **Courses & progress** — add a course, set its total hours, and every finished session charges the clock toward completion.
+- **Study sessions** — start the lamp for free focus or a target timer; session time is measured server-side.
+- **The 30-minute rule** — pause your session and a break buys you 30 minutes before the session ends.
+- **Friend presence** — see which friends are online, studying now, on a break, or offline.
+- **Challenges** — set a date range and race friends to the longest single non-stop session.
+
+## User pages
+
+- Public shareable course pages live under `/p/<slug>/` and are indexable.
+- Public user profile pages live under `/users/<username>/`.
+
+## Notes for AI agents
+
+- This file is a plain-text summary of the site; it mirrors content users actually see.
+- URLs above are canonical; the site also serves `robots.txt` and `sitemap.xml`.
+- The app is a study/accountability tool — tone is casual ("yalla" means "let's go"), not corporate.

@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% load studytags %}
+{% block title %}Your desk · yalla zaker{% endblock %}
+{% block body %}
+<div class="wrap page">
+
+  <div class="panel-title" style="margin-bottom:20px">
+    <h1>{{ request.user.username }}'s desk</h1>
+    <span class="section-meta">the clock is the currency here</span>
+  </div>
+
+  {% if active_session %}
+  <a class="panel lamp-banner" href="{% url 'study' %}" style="margin-bottom:22px">
+    <span>
+      <span class="eyebrow">Right now</span>
+      <strong>
+        {% if active_session.status == 'active' %}
+          You're on the clock for {{ active_session.course.title|default:'a focus session' }}.
+        {% else %}
+          You're on a break — <span class="mono">{{ max_break_minutes|default:30 }} min</span> or the session dies.
+        {% endif %}
+      </strong>
+    </span>
+    <span class="btn btn-primary btn-sm">Open the lamp</span>
+  </a>
+  {% endif %}
+
+  <div class="stats" style="margin-bottom:22px">
+    <div class="panel stat">
+      <span class="num mono">{{ today_seconds|dur }}</span>
+      <span class="lab">Studied today</span>
+    </div>
+    <div class="panel stat">
+      <span class="num mono">{{ longest.duration_seconds|default:0|dur }}</span>
+      <span class="lab">Longest non-stop session</span>
+    </div>
+    <div class="panel stat">
+      <span class="num mono">{{ total_seconds|dur }}</span>
+      <span class="lab">All time on the desk</span>
+    </div>
+  </div>
+
+  <div class="grid grid-main">
+    <div class="panel">
+      <div class="panel-title">
+        <h2>Courses on the desk</h2>
+        <a class="btn btn-ghost btn-sm" href="{% url 'course_create' %}">Add a course</a>
+      </div>
+      {% if courses %}
+        <div class="grid grid-col" style="grid-template-columns: 1fr">
+          {% for course in courses %}
+            {% include 'partials/course_card.html' %}
+            {% if not forloop.last %}<hr class="divider">{% endif %}
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">
+          <strong>No courses yet.</strong>
+          <p>Add the thing you're studying — the clock needs somewhere to point.</p>
+          <a class="btn btn-primary" href="{% url 'course_create' %}">Add your first course</a>
+        </div>
+      {% endif %}
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:18px">
+      <div class="panel">
+        <div class="panel-title">
+          <h2>Friends</h2>
+          <a class="section-meta" href="{% url 'friends' %}">Manage</a>
+        </div>
+        {% if friend_rows %}
+          {% for row in friend_rows %}
+          <div class="friend-row">
+            <span class="status-dot status-{{ row.status }}"></span>
+            <a class="grow name" href="{% url 'profile' username=row.friend.username %}">{{ row.friend.username }}</a>
+            <span class="sub">
+              {% if row.status == 'live' %}studying now{% elif row.status == 'paused' %}on a break{% elif row.status == 'online' %}online{% else %}{{ row.today_count }} sessions today{% endif %}
+            </span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty" style="padding:16px">
+            <p style="margin:0">No friends on the desk yet. Add some to see who's studying.</p>
+            <a class="btn btn-ghost btn-sm" href="{% url 'friends' %}">Add friends</a>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <h2>Roadmap</h2>
+          <a class="section-meta" href="{% url 'roadmaps' %}">All</a>
+        </div>
+        {% for card in roadmap_cards %}
+          <a class="lamp-banner" href="{% url 'roadmap_detail' slug=card.roadmap.slug %}" style="padding:10px 12px; text-decoration:none; margin-bottom:8px; border-radius:8px">
+            <span>
+              <strong>{{ card.roadmap.title }}</strong>
+              <span style="display:block; color:var(--faint); font-size:0.8rem; margin-top:2px">
+                {{ card.step_count }} course{{ card.step_count|pluralize }} · {{ card.total_hours|hours }} planned
+              </span>
+            </span>
+            <span class="btn btn-ghost btn-sm" style="pointer-events:none">View</span>
+          </a>
+        {% empty %}
+          <div class="empty" style="padding:16px">
+            <p style="margin:0 0 6px">No roadmap yet. Group courses around one goal.</p>
+            <a class="btn btn-ghost btn-sm" href="{% url 'roadmap_create' %}">Start a roadmap</a>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <h2>Active challenge</h2>
+          <a class="section-meta" href="{% url 'challenges' %}">All</a>
+        </div>
+        {% for challenge in active_challenges %}
+          <p style="margin-bottom:6px">{{ challenge.title }}</p>
+          <a class="btn btn-primary btn-sm" href="{% url 'challenge_detail' pk=challenge.pk %}">See the board</a>
+        {% empty %}
+          <div class="empty" style="padding:16px">
+            <p style="margin:0 0 6px">No challenge running.</p>
+            <a class="btn btn-ghost btn-sm" href="{% url 'challenge_create' %}">Start one</a>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

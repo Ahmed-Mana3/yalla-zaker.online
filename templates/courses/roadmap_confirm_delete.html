@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Delete roadmap · yalla zaker{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel form-card">
+    <h1>Remove “{{ roadmap.title }}”?</h1>
+    <p class="section-meta">This deletes the roadmap and its shared link. Your courses stay on your desk.</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-actions">
+        <button class="btn btn-danger" type="submit">Delete roadmap</button>
+        <a class="btn btn-ghost" href="{% url 'roadmap_detail' slug=roadmap.slug %}">Keep it</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

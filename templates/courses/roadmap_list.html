@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load studytags %}
+{% block title %}Roadmaps · yalla zaker{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel-title" style="margin-bottom:20px">
+    <h1>Roadmaps</h1>
+    <a class="btn btn-primary btn-sm" href="{% url 'roadmap_create' %}">New roadmap</a>
+  </div>
+
+  <p class="section-meta" style="margin-top:-8px; margin-bottom:22px">
+    Group the courses you're studying into a path that leads to one goal.
+  </p>
+
+  {% if roadmaps %}
+  <div class="grid grid-col">
+    {% for item in roadmaps %}
+    <a class="panel roadmap-card" href="{% url 'roadmap_detail' slug=item.roadmap.slug %}">
+      <div class="rm-card-top">
+        <h3 style="margin:0">{{ item.roadmap.title }}</h3>
+        {% if item.roadmap.is_public %}<span class="tag">public</span>{% endif %}
+      </div>
+      {% if item.roadmap.description %}
+      <p class="section-meta rm-card-desc">{{ item.roadmap.description|truncatechars:110 }}</p>
+      {% endif %}
+      <div class="rm-card-meta">
+        <span class="mono">{{ item.step_count }} course{{ item.step_count|pluralize }}</span>
+        {% if item.total_hours %}<span class="mono">{{ item.total_hours|hours }} planned</span>{% endif %}
+      </div>
+      <div class="rm-card-foot">
+        <span class="section-meta">View roadmap</span>
+        <span class="mono">&rarr;</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">
+    <strong>No roadmaps yet.</strong>
+    <p>A roadmap is a group of courses that together lead to one goal.</p>
+    <a class="btn btn-primary" href="{% url 'roadmap_create' %}">Create your first roadmap</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

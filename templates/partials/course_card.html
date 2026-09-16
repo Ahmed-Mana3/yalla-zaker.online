@@ -1,0 +1,43 @@
+{% load studytags %}
+<article class="course-card">
+  <div class="cc-top">
+    <div>
+      <h3 style="margin-top:0">{{ course.title }}</h3>
+      {% if show_owner %}<div class="section-meta">by <a href="{% url 'profile' username=course.owner.username %}">{{ course.owner.username }}</a></div>{% endif %}
+    </div>
+    {% if live %}
+      <span class="tag tag-live">studying now</span>
+    {% elif course.is_active_course %}
+      <span class="tag tag-ok">on the desk</span>
+    {% endif %}
+  </div>
+
+  <div class="cc-facts">
+    <span>Started {{ course.start_date|date:'M j' }}</span>
+    <span class="mono">{{ course.credits|hours }} done / {{ course.total_hours|hours }} course</span>
+  </div>
+
+  <div class="bar"><i style="width: {% if course.progress %}{{ course.progress }}{% else %}0{% endif %}%"></i></div>
+
+  <div class="cc-foot">
+    <span class="section-meta">{% if course.end_date %}completed {{ course.end_date|date:'M j' }}{% else %}{{ course.remaining_hours|hours }} to go{% endif %}</span>
+    <div class="cc-actions">
+      {% if not hide_study_button %}
+      <a class="btn-ext" href="{% url 'study' %}" aria-label="Start studying {{ course.title }}">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Start studying
+      </a>
+      {% endif %}
+      {% if course.owner == request.user %}
+        <a class="btn btn-ghost btn-sm" href="{% url 'course_detail' slug=course.slug %}">Details</a>
+      {% elif course.is_public %}
+        <a class="btn btn-ghost btn-sm" href="{% url 'public:course_public' slug=course.slug %}">Details</a>
+      {% else %}
+        <a class="btn btn-ghost btn-sm" href="{% url 'course_detail' slug=course.slug %}">Details</a>
+      {% endif %}
+    </div>
+  </div>
+</article>

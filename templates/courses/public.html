@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% load studytags %}
+{% block title %}{{ course.title }} · shared with you — yalla zaker{% endblock %}
+{% block meta_description %}{{ course.title }} — a shared course page on yalla zaker. {{ course.credits }}h done of {{ course.total_hours }}h total. Track your own desk at yalla zaker.{% endblock %}
+{% block og_title %}{{ course.title }} · yalla zaker{% endblock %}
+{% block og_description %}{{ course.title }} — a shared study course. {{ course.credits }}h done of {{ course.total_hours }}h total.{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel course-shared">
+    <div class="eyebrow">Shared course from {{ course.owner.username }}</div>
+    <h1>{{ course.title }}</h1>
+
+    {% if live %}
+    <span class="tag tag-live">Studying right now</span>
+    {% endif %}
+
+    {% if course.link %}
+    <a class="btn-ext" href="{{ course.link }}" target="_blank" rel="noopener" aria-label="Try the course">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+        <polyline points="15 3 21 3 21 9"/>
+        <line x1="10" y1="14" x2="21" y2="3"/>
+      </svg>
+      Try the course
+    </a>
+    {% endif %}
+
+    <a class="owner-line" href="{% url 'profile' username=course.owner.username %}">
+      {% include 'partials/avatar.html' with u=course.owner %}
+      {{ course.owner.username }}
+    </a>
+
+    <div class="bar"><i style="width: {% if course.progress %}{{ course.progress }}{% else %}0{% endif %}%"></i></div>
+    <div class="progress-row">
+      <span class="mono">{{ course.credits|hours }} done / {{ course.total_hours|hours }} course</span>
+      <span class="section-meta">{{ course.progress|default:0 }}% done</span>
+    </div>
+
+    <ul class="subtle-list">
+      <li>Started {{ course.start_date|date:'M j, Y' }}
+        {% if course.end_date %}→ completed {{ course.end_date|date:'M j, Y' }}{% endif %}</li>
+    </ul>
+
+    {% if course.notes %}
+      <hr class="divider">
+      <p class="notes">{{ course.notes }}</p>
+    {% endif %}
+
+    <hr class="divider">
+    {% if request.user.is_authenticated %}
+      <p class="section-meta">Gearing up with the same course?
+        <a href="{% url 'course_create' %}">Add it to your desk.</a></p>
+    {% else %}
+      <a class="btn btn-primary" href="{% url 'signup' %}">Start studying too</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

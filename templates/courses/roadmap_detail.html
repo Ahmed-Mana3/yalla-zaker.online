@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% load studytags %}
+{% block title %}{{ roadmap.title }} · Roadmaps · yalla zaker{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel-title detail-head" style="margin-bottom:14px">
+    <div class="rm-head">
+      <a href="{% url 'roadmaps' %}" class="section-meta">&larr; All roadmaps</a>
+      <h1 style="margin-top:4px; margin-bottom:4px">{{ roadmap.title }}</h1>
+      {% if roadmap.description %}<p class="section-meta rm-desc" style="margin:0; white-space:pre-line">{{ roadmap.description }}</p>{% endif %}
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap">
+      <a class="btn btn-primary btn-sm" href="{% url 'roadmap_steps_edit' slug=roadmap.slug %}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:4px">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>
+        Edit courses
+      </a>
+      <a class="btn btn-ghost btn-sm" href="{% url 'roadmap_edit' slug=roadmap.slug %}">Settings</a>
+      <a class="btn btn-danger btn-sm" href="{% url 'roadmap_delete' slug=roadmap.slug %}">Delete</a>
+    </div>
+  </div>
+
+  <div class="grid grid-main" style="margin-bottom:22px">
+    <div class="panel">
+      <div class="panel-title"><h2>Roadmap overview</h2></div>
+      <div style="display:flex; justify-content:space-between; margin-top:14px; flex-wrap:wrap; gap:8px">
+        <span class="section-meta">{{ roadmap.step_count }} course{{ roadmap.step_count|pluralize }} in this path</span>
+        {% if total_hours %}<span class="section-meta mono">{{ total_hours|hours }} total planned</span>{% endif %}
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><h2>Share this roadmap</h2></div>
+      {% if roadmap.is_public %}
+        <div class="field" style="display:flex; gap:8px">
+          <input type="text" readonly value="{{ request.scheme }}://{{ request.get_host }}{% url 'public:roadmap_public' slug=roadmap.slug %}"
+                 onfocus="this.select()" style="flex:1; min-width:0">
+          <button type="button" class="copy-btn"
+                  data-copy="{{ request.scheme }}://{{ request.get_host }}{% url 'public:roadmap_public' slug=roadmap.slug %}"
+                  data-label="Copy"
+                  data-copied-label="Copied"
+                  aria-label="Copy public roadmap link">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            <span class="copy-label">Copy</span>
+          </button>
+        </div>
+        <p class="help-text">Anyone with the link can see it and clone it into their own roadmaps.</p>
+      {% else %}
+        <p class="section-meta">Link sharing is off. Turn on “Shareable by link” in Settings to let others fork this path.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="panel rm-steps-panel {% if not steps %}has-no-steps{% endif %}" style="padding:0; overflow:hidden">
+    <div class="panel-title" style="padding:20px 20px 0 20px; margin-bottom:12px">
+      <h2>Courses in this roadmap</h2>
+      <span class="meta">{{ roadmap.step_count }} course{{ roadmap.step_count|pluralize }}</span>
+    </div>
+
+    {% if steps %}
+    <ol class="roadmap-steps">
+      {% for step in steps %}
+      <li class="roadmap-step" data-step-id="{{ step.id }}">
+        <div class="rm-rail">
+          <span class="rm-index mono">{{ forloop.counter }}</span>
+        </div>
+
+        <div class="rm-body">
+          <div class="rm-row">
+            <div class="rm-title-wrap">
+              {% if step.link %}
+              <a class="rm-title" href="{{ step.link }}" target="_blank" rel="noopener">
+                {{ step.display_title }}
+                <span style="font-size:0.8rem; color:var(--faint)">&nearr;</span>
+              </a>
+              {% else %}
+              <span class="rm-title">{{ step.display_title }}</span>
+              {% endif %}
+            </div>
+
+            <div class="rm-facts">
+              {% if step.link %}
+              <a class="btn-ext" href="{{ step.link }}" target="_blank" rel="noopener">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                  <polyline points="15 3 21 3 21 9"/>
+                  <line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+                Course page
+              </a>
+              {% endif %}
+              {% if step.planned_hours %}
+              <span class="rm-fact mono">{{ step.planned_hours|hours }} planned</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+    <div class="roadmap-steps-foot">
+      <a class="btn btn-ghost btn-sm" href="{% url 'roadmap_steps_edit' slug=roadmap.slug %}">+ Edit sequence or add courses</a>
+    </div>
+    {% else %}
+    <div class="empty rm-empty" style="margin:0 20px 20px">
+      <strong>No courses yet — this path is open.</strong>
+      <p>Add the courses that form this path in the order you'll take them.</p>
+      <a class="btn btn-primary btn-sm" href="{% url 'roadmap_steps_edit' slug=roadmap.slug %}" style="margin-top:10px">+ Add courses</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

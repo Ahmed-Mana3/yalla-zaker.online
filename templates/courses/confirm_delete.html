@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Delete course · yalla zaker{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel form-card">
+    <h1>Remove “{{ course.title }}”?</h1>
+    <p class="section-meta">This deletes the course and its shared link. Study sessions stay on your history.</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-actions">
+        <button class="btn btn-danger" type="submit">Delete course</button>
+        <a class="btn btn-ghost" href="{% url 'course_detail' slug=course.slug %}">Keep it</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

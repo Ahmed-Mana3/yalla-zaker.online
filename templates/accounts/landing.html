@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}yalla zaker — study tracker, focus clock, and friendly challenges{% endblock %}
+{% block meta_description %}yalla zaker turns your courses into a clock, your friends into witnesses, and your study sessions into a streak you don't want to break. Track study hours, run the 30-minute focus lamp, and race friends.{% endblock %}
+{% block og_title %}yalla zaker — study tracker, focus clock, and friendly challenges{% endblock %}
+{% block og_description %}Turn your courses into a clock, your friends into witnesses, and your study sessions into a streak you don't want to break.{% endblock %}
+{% block body %}
+<section class="hero">
+  <div class="hero-inner">
+    <h1>Come on.<br>Stud<b class="amp">y</b>.</h1>
+    <p class="sub">
+      yalla zaker turns your courses into a clock, your friends into witnesses,
+      and your study sessions into something you don't want to lose.
+    </p>
+    <div class="hero-cta">
+      <a class="btn btn-primary btn-lg" href="{% url 'signup' %}">Start studying</a>
+      <a class="btn btn-ghost btn-lg" href="{% url 'login' %}">I have a desk already</a>
+    </div>
+    <div class="mini-clock" aria-hidden="true">
+      <span class="status-dot status-live"></span>
+      someone is studying right now — the clock is running
+    </div>
+  </div>
+</section>
+
+<section class="feature-strip">
+  <div class="panel">
+    <h3>Your desk</h3>
+    <p class="section-meta">Add the course you're grinding and tell it how many hours it needs. Every session charges the clock — the progress bar answers for you.</p>
+  </div>
+  <div class="panel">
+    <h3>The 30-minute rule</h3>
+    <p class="section-meta">Pause your session, but a break only buys you 30 minutes. Go past it and the session is over — the clock keeps what you earned.</p>
+  </div>
+  <div class="panel">
+    <h3>Friendly fire</h3>
+    <p class="section-meta">Add friends, watch their sessions go live, and run challenges for who can hold the longest non-stop deep work.</p>
+  </div>
+</section>
+{% endblock %}

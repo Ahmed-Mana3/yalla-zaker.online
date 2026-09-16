@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% load studytags %}
+{% block title %}{{ challenge.title }} · yalla zaker{% endblock %}
+{% block meta_description %}{{ challenge.title }} — a study challenge on yalla zaker. See the leaderboard, join the challenge, and track who holds the longest non-stop session.{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel-title" style="margin-bottom:8px">
+    <a href="{% url 'challenges' %}" class="section-meta">&larr; All challenges</a>
+    <h1 style="margin-top:4px">{{ challenge.title }}</h1>
+  </div>
+
+  <div class="grid grid-main">
+    <div class="panel">
+      <div class="panel-title">
+        <h2>Leaderboard</h2>
+        <span class="meta">longest single non-stop session wins</span>
+      </div>
+      {% if leaderboard %}
+      <ol class="leaderboard">
+        {% for user, longest, total in leaderboard %}
+        <li class="lb-row {% if forloop.counter0 == 0 %}is-top{% endif %} {% if user == request.user %}is-me{% endif %}">
+          <span class="lb-rank">{{ forloop.counter }}</span>
+          {% include 'partials/avatar.html' with u=user size=30 %}
+          <a href="{% url 'profile' username=user.username %}">{{ user.username }}</a>
+          <span class="lb-total">{{ total|dur }} total</span>
+          <span class="lb-time">{{ longest|dur }}</span>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <div class="empty">
+        <strong>No scoreboard yet.</strong>
+        <p>Study before {{ challenge.ends_at|date:'M j' }} and your longest session lands here.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:18px">
+      <div class="panel">
+        {% if challenge.is_active %}<span class="tag tag-live">live now</span>
+        {% elif challenge.ends_at < now %}<span class="tag">closed</span>
+        {% else %}<span class="tag tag-ok">upcoming</span>{% endif %}
+        <h3 style="margin:10px 0 6px">{{ challenge.starts_at|date:'M j' }} → {{ challenge.ends_at|date:'M j, Y' }}</h3>
+        <p class="section-meta">{{ challenge.members.count }} member{{ challenge.members.count|pluralize }}</p>
+        {% if challenge.description %}<p class="section-meta" style="white-space:pre-line; margin-top:10px">{{ challenge.description }}</p>{% endif %}
+        <hr class="divider">
+        {% if request.user.is_authenticated %}
+          {% if is_member %}
+            {% if me %}
+            <p><strong>Your best:</strong> <span class="mono">{{ me.longest_seconds|dur }}</span>
+              <span class="section-meta">· {{ me.total_seconds|dur }} total</span></p>
+            {% endif %}
+            <a class="btn btn-primary" href="{% url 'study' %}">Study something</a>
+          {% else %}
+            <form method="post" action="{% url 'challenge_join' pk=challenge.pk %}">{% csrf_token %}
+              <button class="btn btn-primary" type="submit">Join this challenge</button>
+            </form>
+          {% endif %}
+        {% else %}
+          <a class="btn btn-primary" href="{% url 'login' %}">Log in to join</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
