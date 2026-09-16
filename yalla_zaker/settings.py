@@ -12,12 +12,36 @@ SECRET_KEY = os.environ.get(
 
 DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "yes")
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",") if os.environ.get("ALLOWED_HOSTS") else [
-    ".vercel.app",
-    ".yalla-zaker.online",
-    "localhost",
-    "127.0.0.1",
+# Allowed Hosts
+raw_allowed_hosts = os.environ.get("ALLOWED_HOSTS")
+if raw_allowed_hosts:
+    ALLOWED_HOSTS = [h.strip() for h in raw_allowed_hosts.split(",") if h.strip()]
+else:
+    ALLOWED_HOSTS = [
+        "yalla-zaker.onine",
+        "www.yalla-zaker.onine",
+        ".yalla-zaker.onine",
+        "yalla-zaker.online",
+        "www.yalla-zaker.online",
+        ".yalla-zaker.online",
+        ".vercel.app",
+        "localhost",
+        "127.0.0.1",
+    ]
+
+# CSRF Trusted Origins (required for HTTPS POST requests on production)
+CSRF_TRUSTED_ORIGINS = [
+    "https://yalla-zaker.onine",
+    "https://www.yalla-zaker.onine",
+    "https://*.yalla-zaker.onine",
+    "https://yalla-zaker.online",
+    "https://www.yalla-zaker.online",
+    "https://*.yalla-zaker.online",
+    "https://*.vercel.app",
 ]
+raw_csrf = os.environ.get("CSRF_TRUSTED_ORIGINS")
+if raw_csrf:
+    CSRF_TRUSTED_ORIGINS.extend([origin.strip() for origin in raw_csrf.split(",") if origin.strip()])
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -67,7 +91,7 @@ WSGI_APPLICATION = "yalla_zaker.wsgi.application"
 DATABASES = {
     "default": dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600,
+        conn_max_age=int(os.environ.get("CONN_MAX_AGE", "0")),
         ssl_require="DATABASE_URL" in os.environ,
     )
 }
@@ -87,7 +111,7 @@ USE_I18N = True
 
 USE_TZ = True
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
@@ -108,11 +132,11 @@ ONLINE_THROTTLE_SECONDS = 60
 
 # SEO: pin the production domain here so sitemap/robots/canonical use it.
 # Left empty, the request's own host is used (works in dev and on any host).
-SEO_CANONICAL_HOST = ""
+SEO_CANONICAL_HOST = os.environ.get("SEO_CANONICAL_HOST", "")
 
 # Production security settings (only when DEBUG is off)
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "True").lower() in ("true", "1", "yes")
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
@@ -120,3 +144,31 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     X_FRAME_OPTIONS = "DENY"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[{levelname}] {asctime} {name}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
