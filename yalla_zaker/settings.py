@@ -57,6 +57,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "yalla_zaker.middleware.ExceptionDebugMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -88,13 +89,24 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "yalla_zaker.wsgi.application"
 
-DATABASES = {
-    "default": dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=int(os.environ.get("CONN_MAX_AGE", "0")),
-        ssl_require="DATABASE_URL" in os.environ,
-    )
-}
+database_url = os.environ.get("DATABASE_URL", "").strip()
+if database_url and not any(database_url.startswith(s) for s in ("postgresql://", "postgres://", "sqlite://")):
+    import sys
+    print(f"WARNING: Invalid DATABASE_URL '{database_url}'. It must start with postgresql://. Falling back to sqlite.", file=sys.stderr)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+else:
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+            conn_max_age=int(os.environ.get("CONN_MAX_AGE", "0")),
+            ssl_require="DATABASE_URL" in os.environ,
+        )
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
