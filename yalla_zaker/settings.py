@@ -91,21 +91,29 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "yalla_zaker.wsgi.application"
 
-database_url = os.environ.get("DATABASE_URL", "").strip()
+# Prefer an explicit DATABASE_URL, then fall back to the variables the
+# Vercel/Neon integration creates (POSTGRES_URL is the pooled endpoint;
+# POSTGRES_URL_NON_POOLING is the direct one best suited to psycopg2).
+database_url = (
+    os.environ.get("DATABASE_URL", "").strip()
+    or os.environ.get("POSTGRES_URL_NON_POOLING", "").strip()
+    or os.environ.get("POSTGRES_URL", "").strip()
+)
 valid_database_url = database_url.startswith(("postgresql://", "postgres://"))
 
 if database_url and not valid_database_url:
     print(
-        f"ERROR: DATABASE_URL '{database_url}' is invalid; it must start with postgresql://. "
-        "Set the Vercel environment variable to a real PostgreSQL connection string "
-        "(e.g. from Neon or Supabase).",
+        f"ERROR: the database URL is invalid; it must start with postgresql://. "
+        "Set the DATABASE_URL (or Vercel/Neon POSTGRES_URL) environment variable to a real "
+        "PostgreSQL connection string (e.g. from Neon or Supabase).",
         file=sys.stderr,
     )
-    raise ImproperlyConfigured("Invalid DATABASE_URL. It must start with postgresql://.")
+    raise ImproperlyConfigured("Invalid database URL. It must start with postgresql://.")
 
 if valid_database_url:
     DATABASES = {
-        "default": dj_database_url.config(
+        "default": dj_database_url.parse(
+            database_url,
             conn_max_age=int(os.environ.get("CONN_MAX_AGE", "0")),
             ssl_require=True,
             conn_health_checks=int(os.environ.get("CONN_MAX_AGE", "0")) > 0,
@@ -121,12 +129,13 @@ elif DEBUG:
     }
 else:
     print(
-        "ERROR: DATABASE_URL is not set. Production requires PostgreSQL. "
-        "Add a connection string under Vercel -> Project -> Settings -> Environment Variables "
-        "(e.g. postgresql://user:pass@...neon.tech/db).",
+        "ERROR: no database URL is set. Production requires PostgreSQL. "
+        "Either add DATABASE_URL under Vercel -> Project -> Settings -> Environment Variables "
+        "(e.g. postgresql://user:pass@...neon.tech/db), or connect Neon via the Vercel "
+        "integration so POSTGRES_URL is provided.",
         file=sys.stderr,
     )
-    raise ImproperlyConfigured("DATABASE_URL is required when DEBUG=False.")
+    raise ImproperlyConfigured("A database URL is required when DEBUG=False.")
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
