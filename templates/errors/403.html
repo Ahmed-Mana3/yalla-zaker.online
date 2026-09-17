@@ -1,0 +1,9 @@
+{% extends 'errors/base.html' %}
+{% block extra %}
+{% if not request.user.is_authenticated %}
+<div class="error-actions">
+  <a class="btn btn-ghost" href="{% url 'login' %}">Log in</a>
+  <a class="btn btn-primary" href="{% url 'signup' %}">Start studying</a>
+</div>
+{% endif %}
+{% endblock %}

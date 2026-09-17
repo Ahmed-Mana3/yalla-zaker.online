@@ -17,3 +17,5 @@ urlpatterns = [
 
 handler500 = middleware.server_error
 handler404 = middleware.page_not_found
+handler403 = middleware.permission_denied
+handler400 = middleware.bad_request

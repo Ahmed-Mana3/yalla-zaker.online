@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}{{ error_code }} — {{ headline }}{% endblock %}
+{% block meta_description %}yalla zaker — {{ message }}{% endblock %}
+{% block og_title %}yalla zaker — {{ headline }}{% endblock %}
+{% block og_description %}{{ message }}{% endblock %}
+{% block body %}
+<section class="error-page">
+  <div class="error-lamp {{ lamp_state }}" aria-hidden="true">{{ error_code }}</div>
+  <p class="error-eyebrow">yalla zaker — the night desk</p>
+  <h1 class="error-title">{{ headline }}</h1>
+  <p class="error-text">{{ message }}</p>
+  {% block extra %}{% endblock %}
+  <div class="error-actions">
+    {% if request.user.is_authenticated %}
+    <a class="btn btn-primary" href="{% url 'dashboard' %}">Back to your desk</a>
+    {% else %}
+    <a class="btn btn-primary" href="{% url 'home' %}">Back to home</a>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

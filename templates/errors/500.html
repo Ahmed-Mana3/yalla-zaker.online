@@ -1,0 +1,13 @@
+{% extends 'errors/base.html' %}
+{% block extra %}
+<details class="error-diag">
+  <summary>Technical details</summary>
+  <dl class="error-diag-facts">
+    <div><dt>Request</dt><dd>{{ diag.method }} {{ diag.path }}</dd></div>
+    <div><dt>Host</dt><dd>{{ diag.host }}</dd></div>
+    <div><dt>Database env</dt><dd>{{ diag.db_configured|yesno:"present,missing" }}</dd></div>
+    <div><dt>Python</dt><dd class="mono">{{ diag.python_version }}</dd></div>
+  </dl>
+  <pre class="error-diag-tb">{{ tb }}</pre>
+</details>
+{% endblock %}

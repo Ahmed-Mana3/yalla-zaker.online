@@ -1,0 +1,6 @@
+{% extends 'errors/base.html' %}
+{% block extra %}
+{% if requested_path %}
+<p class="error-path mono">{{ requested_path }}</p>
+{% endif %}
+{% endblock %}
