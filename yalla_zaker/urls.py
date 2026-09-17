@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import include, path
 
-from . import seo
+from . import middleware, seo
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -14,3 +14,6 @@ urlpatterns = [
     path('challenges/', include('challenges.urls')),
     path('p/', include('courses.public_urls')),
 ]
+
+handler500 = middleware.server_error
+handler404 = middleware.page_not_found

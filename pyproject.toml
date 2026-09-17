@@ -12,5 +12,4 @@ dependencies = [
 ]
 
 [tool.vercel.scripts]
-# Vercel runs collectstatic automatically; only apply schema migrations here.
-build = "python manage.py migrate --noinput"
+build = "python manage.py collectstatic --noinput && python manage.py migrate --noinput"
