@@ -1,7 +1,9 @@
 import os
+import sys
 from pathlib import Path
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -90,9 +92,27 @@ TEMPLATES = [
 WSGI_APPLICATION = "yalla_zaker.wsgi.application"
 
 database_url = os.environ.get("DATABASE_URL", "").strip()
-if database_url and not any(database_url.startswith(s) for s in ("postgresql://", "postgres://", "sqlite://")):
-    import sys
-    print(f"WARNING: Invalid DATABASE_URL '{database_url}'. It must start with postgresql://. Falling back to sqlite.", file=sys.stderr)
+valid_database_url = database_url.startswith(("postgresql://", "postgres://"))
+
+if database_url and not valid_database_url:
+    print(
+        f"ERROR: DATABASE_URL '{database_url}' is invalid; it must start with postgresql://. "
+        "Set the Vercel environment variable to a real PostgreSQL connection string "
+        "(e.g. from Neon or Supabase).",
+        file=sys.stderr,
+    )
+    raise ImproperlyConfigured("Invalid DATABASE_URL. It must start with postgresql://.")
+
+if valid_database_url:
+    DATABASES = {
+        "default": dj_database_url.config(
+            conn_max_age=int(os.environ.get("CONN_MAX_AGE", "0")),
+            ssl_require=True,
+            conn_health_checks=int(os.environ.get("CONN_MAX_AGE", "0")) > 0,
+        )
+    }
+elif DEBUG:
+    # Local development only: SQLite keeps it simple.
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -100,13 +120,13 @@ if database_url and not any(database_url.startswith(s) for s in ("postgresql://"
         }
     }
 else:
-    DATABASES = {
-        "default": dj_database_url.config(
-            default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-            conn_max_age=int(os.environ.get("CONN_MAX_AGE", "0")),
-            ssl_require="DATABASE_URL" in os.environ,
-        )
-    }
+    print(
+        "ERROR: DATABASE_URL is not set. Production requires PostgreSQL. "
+        "Add a connection string under Vercel -> Project -> Settings -> Environment Variables "
+        "(e.g. postgresql://user:pass@...neon.tech/db).",
+        file=sys.stderr,
+    )
+    raise ImproperlyConfigured("DATABASE_URL is required when DEBUG=False.")
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
