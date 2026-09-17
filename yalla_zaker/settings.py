@@ -7,9 +7,9 @@ from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get(
-    "SECRET_KEY",
-    "django-insecure-ypa2zca3xjwssii-m&o9uujufu%g%2=(8gwh*z4ugwrwx$rp7p",
+SECRET_KEY = (
+    os.environ.get("SECRET_KEY", "").strip()
+    or "django-insecure-ypa2zca3xjwssii-m&o9uujufu%g%2=(8gwh*z4ugwrwx$rp7p"
 )
 
 DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "yes")
