@@ -10,6 +10,8 @@
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="{{ canonical_site }}{{ canonical_path }}">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23B2054C'/%3E%3Ccircle cx='8' cy='8' r='4' fill='none' stroke='%23007DCC' stroke-width='1.6'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%23FFB900'/%3E%3C/svg%3E">
+  <link rel="manifest" href="{% url 'manifest' %}">
+  <link rel="apple-touch-icon" href="{% static 'icons/icon-192x192.png' %}">
 
   <!-- Open Graph -->
   <meta property="og:site_name" content="yalla zaker">
@@ -161,6 +163,17 @@
   </footer>
 
   <script src="{% static 'js/app.js' %}"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register("{% url 'sw' %}").then(function(registration) {
+          console.log('ServiceWorker registration successful');
+        }).catch(function(err) {
+          console.log('ServiceWorker registration failed: ', err);
+        });
+      });
+    }
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

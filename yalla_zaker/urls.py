@@ -8,6 +8,8 @@ urlpatterns = [
     path('robots.txt', seo.robots_txt, name='robots'),
     path('sitemap.xml', seo.sitemap_xml, name='sitemap'),
     path('llms.txt', seo.llms_txt, name='llms'),
+    path('manifest.json', seo.manifest_json, name='manifest'),
+    path('sw.js', seo.sw_js, name='sw'),
     path('', include('accounts.urls')),
     path('courses/', include('courses.urls')),
     path('study/', include('studysessions.urls')),

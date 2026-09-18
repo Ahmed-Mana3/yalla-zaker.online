@@ -84,3 +84,11 @@ def sitemap_xml(request):
 
 def llms_txt(request):
     return render(request, 'seo/llms.txt', {}, content_type='text/plain; charset=utf-8')
+
+# ------------------------------------------------------------------- pwa
+
+def manifest_json(request):
+    return render(request, 'seo/manifest.json', {}, content_type='application/json')
+
+def sw_js(request):
+    return render(request, 'seo/sw.js', {}, content_type='application/javascript')
