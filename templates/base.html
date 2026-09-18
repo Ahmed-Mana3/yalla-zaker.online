@@ -60,7 +60,7 @@
         <a href="{% url 'friends' %}" class="{% if request.resolver_match.url_name == 'friends' %}is-active{% endif %}">Friends</a>
         <a href="{% url 'challenges' %}" class="{% if request.resolver_match.url_name == 'challenges' or request.resolver_match.url_name|slice:':10' == 'challenge_' %}is-active{% endif %}">Challenges</a>
       </nav>
-      <div class="topbar-right">
+      <div class="topbar-right auth-topbar-right">
         <a class="user-chip" href="{% url 'profile' username=request.user.username %}">
           {% include 'partials/avatar.html' with u=request.user size=30 %}
           <span class="user-chip-name">{{ request.user.username }}</span>
@@ -78,6 +78,15 @@
       <a href="{% url 'study' %}" class="{% if request.resolver_match.namespace == 'study' or request.resolver_match.url_name == 'study' %}is-active{% endif %}">Study</a>
       <a href="{% url 'friends' %}" class="{% if request.resolver_match.url_name == 'friends' %}is-active{% endif %}">Friends</a>
       <a href="{% url 'challenges' %}" class="{% if request.resolver_match.url_name == 'challenges' or request.resolver_match.url_name|slice:':10' == 'challenge_' %}is-active{% endif %}">Challenges</a>
+      <hr style="border: none; border-top: 1px solid var(--line); margin: 8px 0;" />
+      <a href="{% url 'profile' username=request.user.username %}" style="display: flex; align-items: center; gap: 8px;">
+        {% include 'partials/avatar.html' with u=request.user size=24 %}
+        {{ request.user.username }}
+      </a>
+      <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="linklike" style="padding: 11px 14px; width: 100%; text-align: left; font-weight: 500; font-size: 0.95rem; color: var(--text);">Log out</button>
+      </form>
     </nav>
   </header>
   {% else %}

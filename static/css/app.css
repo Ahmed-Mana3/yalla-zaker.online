@@ -3055,9 +3055,10 @@ body.is-focus-end .checkin-card {
   .page { padding: 18px 16px 60px; }
 
   /* hamburger menu — desktop nav hidden, hamburger shown */
-  .hamburger-btn { display: flex; }
+  .hamburger-btn { display: flex; order: 3; margin-left: auto; }
   .mainnav { display: none; }
   .topbar-right { gap: 8px; }
+  .auth-topbar-right { display: none !important; }
   .topbar-inner { height: auto; min-height: 56px; flex-wrap: wrap; padding-top: 0; padding-bottom: 0; }
   .topbar-inner .brand { order: 1; }
   .topbar-right { order: 2; margin-left: auto; }
