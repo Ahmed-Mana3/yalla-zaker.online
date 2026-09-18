@@ -8,7 +8,11 @@ urlpatterns = [
     path('signup/', views.signup, name='signup'),
     path(
         'login/',
-        LoginView.as_view(template_name='accounts/login.html', redirect_authenticated_user=True),
+        LoginView.as_view(
+            template_name='accounts/auth.html',
+            redirect_authenticated_user=True,
+            extra_context={'mode': 'login'},
+        ),
         name='login',
     ),
     path('logout/', views.logout_view, name='logout'),

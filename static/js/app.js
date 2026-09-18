@@ -13,6 +13,32 @@
     setTimeout(dismiss, 6000);
   });
 
+  /* ---------- hamburger menu ---------- */
+  (function () {
+    var btn = document.getElementById('hamburger-btn');
+    var nav = document.getElementById('mobile-nav');
+    if (!btn || !nav) return;
+    btn.addEventListener('click', function () {
+      var open = nav.classList.toggle('is-open');
+      btn.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', function (e) {
+      if (!nav.contains(e.target) && !btn.contains(e.target) && nav.classList.contains('is-open')) {
+        nav.classList.remove('is-open');
+        btn.classList.remove('is-open');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+    });
+    nav.querySelectorAll('a').forEach(function (link) {
+      link.addEventListener('click', function () {
+        nav.classList.remove('is-open');
+        btn.classList.remove('is-open');
+        btn.setAttribute('aria-expanded', 'false');
+      });
+    });
+  })();
+
   /* ---------- helpers ---------- */
   function pad(n) { return String(n).padStart(2, '0'); }
 
@@ -23,6 +49,11 @@
     var sec = s % 60;
     if (h > 0) return pad(h) + ':' + pad(m) + ':' + pad(sec);
     return pad(m) + ':' + pad(sec);
+  }
+
+  /* Match Django's %g formatting for hours: 2.0 -> '2', 2.75 -> '2.75'. */
+  function fmtNum(n) {
+    return String(Math.round(n * 100) / 100);
   }
 
   /* ---------- copy buttons ---------- */
@@ -70,6 +101,236 @@
       }
     });
   });
+
+  /* ---------- guest topbar auth pill (Log in / Start studying) ---------- */
+  function initAuthPill() {
+    var pill = document.querySelector('.auth-pill');
+    if (!pill) return;
+    var links = Array.prototype.slice.call(pill.querySelectorAll('.auth-pill-link'));
+    var slider = pill.querySelector('.auth-pill-slider');
+    function place(target) {
+      if (!target || !slider) return;
+      slider.style.width = target.offsetWidth + 'px';
+      slider.style.transform = 'translateX(' + target.offsetLeft + 'px)';
+    }
+    function sync(link) {
+      var target = link || pill.querySelector('.auth-pill-link.is-active');
+      pill.classList.toggle('is-second', !!target && target.id === 'auth-pill-signup');
+      place(target);
+    }
+    links.forEach(function (link) {
+      link.addEventListener('mouseenter', function () { sync(link); });
+      link.addEventListener('focus', function () { sync(link); });
+    });
+    pill.addEventListener('mouseleave', function () { sync(null); });
+    document.addEventListener('focusout', function (e) {
+      if (!pill.contains(e.target)) sync(null);
+    });
+    window.addEventListener('resize', function () { sync(null); });
+    sync(null);
+  }
+  initAuthPill();
+
+  /* ---------- unified auth: mode switch ---------- */
+  function initAuthModes() {
+    var modes = document.querySelector('.auth-modes');
+    if (!modes) return;
+    var buttons = Array.prototype.slice.call(modes.querySelectorAll('.auth-mode'));
+    var loginPanel = document.getElementById('auth-login');
+    var signupPanel = document.getElementById('auth-signup');
+    function show(name) {
+      modes.classList.toggle('is-second', name === 'signup');
+      buttons.forEach(function (b) {
+        var on = b.getAttribute('data-mode') === name;
+        b.classList.toggle('is-active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      loginPanel.classList.toggle('is-active', name === 'login');
+      signupPanel.classList.toggle('is-active', name === 'signup');
+      var panel = name === 'signup' ? signupPanel : loginPanel;
+      var first = panel.querySelector('input');
+      if (first) {
+        try { first.focus({ preventScroll: true }); } catch (e) { first.focus(); }
+      }
+    }
+    buttons.forEach(function (b) {
+      b.addEventListener('click', function () { show(b.getAttribute('data-mode')); });
+    });
+  }
+  initAuthModes();
+
+  /* ---------- unified auth: show/hide password ---------- */
+  document.querySelectorAll('[data-password-toggle]').forEach(function (btn) {
+    var field = btn.closest('.password-field');
+    if (!field) return;
+    var input = field.querySelector('input');
+    if (!input) return;
+    btn.addEventListener('click', function () {
+      var showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      btn.setAttribute('aria-pressed', showing ? 'false' : 'true');
+      btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+    });
+  });
+
+  /* ---------- unified auth: live password checklist (gold flash on all pass) ---------- */
+  function initAuthChecklist() {
+    var panel = document.getElementById('auth-signup');
+    if (!panel) return;
+    var input = function (name) { return panel.querySelector('input[name="' + name + '"]'); };
+    var p1 = input('password1');
+    var p2 = input('password2');
+    var user = input('username');
+    var email = input('email');
+    var submit = document.getElementById('signup-submit');
+    if (!p1 || !p2 || !submit) return;
+
+    var rules = {};
+    panel.querySelectorAll('[data-password-checklist] li[data-rule]').forEach(function (li) {
+      rules[li.getAttribute('data-rule')] = li;
+    });
+    var matchBox = panel.querySelector('[data-password-match]');
+    var matchText = matchBox ? matchBox.querySelector('.match-text') : null;
+
+    var COZ_COMMON = ['password','123456','12345678','1234567890','qwerty','abc123','111111','1234567','password1','iloveyou','admin','welcome','monkey','dragon','letmein','sunshine','baseball','superman','trustno1','yallazaker','yalla','zaker'];
+
+    var flashed = false;
+    function flashGold() {
+      Object.keys(rules).forEach(function (k) {
+        rules[k].classList.add('flash-gold');
+        setTimeout(function () { rules[k].classList.remove('flash-gold'); }, 900);
+      });
+    }
+    function setRule(key, ok) {
+      if (!rules[key]) return;
+      rules[key].classList.toggle('is-met', !!ok);
+    }
+    function evaluate() {
+      var pw = p1.value;
+      var len = pw.length >= 8;
+      var numeric = /^\d+$/.test(pw);
+      var common = pw.length > 0 && COZ_COMMON.indexOf(pw.toLowerCase()) !== -1;
+      var emailPrefix = email && email.value ? email.value.split('@')[0].trim() : '';
+      var similarity = pw.length > 0 && (
+        (user && user.value.trim() && pw.toLowerCase().indexOf(user.value.trim().toLowerCase()) !== -1) ||
+        (emailPrefix.length >= 3 && pw.toLowerCase().indexOf(emailPrefix.toLowerCase()) !== -1)
+      );
+
+      setRule('length', len);
+      setRule('numeric', !numeric && pw.length > 0);
+      setRule('common', !common && pw.length > 0);
+      setRule('similar', !similarity && pw.length > 0);
+
+      var allPass = len && !numeric && !common && !similarity;
+      if (allPass && !flashed) {
+        flashed = true;
+        flashGold();
+      } else if (!allPass) {
+        flashed = false;
+      }
+
+      var match = p2.value.length > 0 && p2.value === pw;
+      if (matchBox && matchText) {
+        if (p2.value.length === 0) {
+          matchBox.className = 'password-match-indicator';
+          matchText.textContent = 'Repeat your password to confirm';
+        } else if (match) {
+          matchBox.className = 'password-match-indicator is-match';
+          matchText.textContent = 'Passwords match';
+        } else {
+          matchBox.className = 'password-match-indicator is-no-match';
+          matchText.textContent = 'Passwords do not match yet';
+        }
+      }
+
+      var ready = allPass && match;
+      submit.classList.toggle('pwd-ready', ready);
+      submit.classList.toggle('pwd-locked', !ready);
+    }
+
+    p1.addEventListener('input', evaluate);
+    p2.addEventListener('input', evaluate);
+    if (user) user.addEventListener('input', evaluate);
+    if (email) email.addEventListener('input', evaluate);
+    evaluate();
+  }
+  initAuthChecklist();
+
+  /* ---------- landing: interactive tabs ---------- */
+  function initTabs() {
+    var head = document.querySelector('.tabs-head');
+    if (!head) return;
+    var tabs = Array.prototype.slice.call(head.querySelectorAll('.tab'));
+    var underline = head.querySelector('.tab-underline');
+    if (!tabs.length) return;
+    function moveUnderline(tab) {
+      if (!underline) return;
+      if (window.matchMedia('(max-width: 520px)').matches) {
+        underline.style.width = '0';
+        return;
+      }
+      underline.style.left = tab.offsetLeft + 'px';
+      underline.style.width = tab.offsetWidth + 'px';
+    }
+    function select(tab) {
+      tabs.forEach(function (t) {
+        var on = t === tab;
+        t.classList.toggle('is-active', on);
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      document.querySelectorAll('.tabs .tab-panel').forEach(function (p) {
+        p.classList.toggle('is-active', p.getAttribute('data-panel') === tab.getAttribute('data-tab'));
+      });
+      moveUnderline(tab);
+    }
+    tabs.forEach(function (tab) { tab.addEventListener('click', function () { select(tab); }); });
+    var active = head.querySelector('.tab.is-active');
+    if (active) moveUnderline(active);
+    window.addEventListener('resize', function () {
+      var cur = head.querySelector('.tab.is-active');
+      if (cur) moveUnderline(cur);
+    });
+  }
+  initTabs();
+
+  /* ---------- dashboard: current-focus ring ---------- */
+  function initDeskRing() {
+    var ring = document.getElementById('desk-ring');
+    if (!ring) return;
+    var status = ring.getAttribute('data-status');
+    var timeEl = document.getElementById('desk-ring-time');
+    var fg = ring.querySelector('circle.fg');
+    if (!timeEl || !fg || !status) return;
+    var circ = 263.9;
+    var update = function (frac, text) {
+      timeEl.textContent = text;
+      fg.style.strokeDashoffset = circ * Math.max(0, Math.min(1, frac));
+    };
+    if (status === 'active') {
+      var targetMin = parseInt(ring.getAttribute('data-target') || '0', 10) || 0;
+      var baseElapsed = parseInt(ring.getAttribute('data-elapsed') || '0', 10) || 0;
+      var baseAt = Date.now();
+      setInterval(function () {
+        var elapsed = baseElapsed + (Date.now() - baseAt) / 1000;
+        if (targetMin) {
+          var remaining = Math.max(0, targetMin * 60 - elapsed);
+          if (remaining === 0) { window.location.reload(); return; }
+          update(remaining / (targetMin * 60), fmt(Math.ceil(remaining)));
+        } else {
+          update(0, fmt(elapsed));
+        }
+      }, 1000);
+    } else if (status === 'paused') {
+      var pausedAt = new Date(ring.getAttribute('data-paused-at')).getTime();
+      var maxBreak = (parseInt(ring.getAttribute('data-max-break') || '30', 10) || 30) * 60;
+      setInterval(function () {
+        var left = Math.max(0, maxBreak - (Date.now() - pausedAt) / 1000);
+        if (left === 0) { window.location.reload(); return; }
+        update(left / maxBreak, fmt(Math.ceil(left)));
+      }, 1000);
+    }
+  }
+  initDeskRing();
 
   /* ---------- Web Audio Chime ---------- */
   function playChime() {
@@ -173,7 +434,8 @@
     if (!status || status === 'none') return;
 
     var pausedAt = lamp.dataset.pausedAt ? new Date(lamp.dataset.pausedAt).getTime() : null;
-    var maxBreak = parseInt(lamp.dataset.maxBreak || '1800', 10);
+    var maxBreak = (parseInt(lamp.dataset.maxBreak || '30', 10) || 30) * 60;
+    var badgeTime = document.getElementById('break-badge-time');
     var targetMin = parseInt(lamp.dataset.target || '0', 10) || 0;
     var elapsedEl = lamp.querySelector('.lamp-timer');
     var labelEl = lamp.querySelector('.lamp-label');
@@ -197,6 +459,22 @@
     }
 
     var endForm = document.getElementById('form-end');
+    var goalPct = document.getElementById('goal-pct');
+    var done = false;
+
+    /* ring fill fraction at this instant (null when the lamp shows no arc) */
+    function arcFraction() {
+      if (status === 'active') {
+        if (!targetMin) return 0;
+        var elapsed = baseElapsed + (Date.now() - baseAt) / 1000;
+        return (targetMin * 60 - elapsed) / (targetMin * 60);
+      }
+      if (status === 'paused') {
+        var leftSec = (maxBreak * 1000 - (Date.now() - pausedAt)) / 1000;
+        return leftSec / maxBreak;
+      }
+      return null;
+    }
 
     function render() {
       var now = Date.now();
@@ -206,37 +484,50 @@
           var remaining = targetMin * 60 - elapsed;
           if (remaining <= 0) {
             elapsedEl.textContent = '00:00';
+            if (labelEl) labelEl.textContent = 'Time left';
+            if (goalPct) goalPct.textContent = '100%';
+            lamp.classList.remove('is-tight');
             if (!hasChimed) {
               hasChimed = true;
               playChime();
             }
-            if (endForm) endForm.submit();
+            if (!done && endForm) { done = true; endForm.submit(); }
             return;
           }
           elapsedEl.textContent = fmt(Math.ceil(remaining));
-          if (labelEl) labelEl.textContent = 'Time left · ' + (lamp.dataset.course || 'the grind');
-          setArc(remaining / (targetMin * 60));
+          if (labelEl) labelEl.textContent = 'Time left';
+          if (goalPct) goalPct.textContent = Math.min(99, Math.max(0, Math.floor(elapsed / (targetMin * 60) * 100))) + '%';
           lamp.classList.toggle('is-tight', remaining <= 120);
         } else {
           elapsedEl.textContent = fmt(elapsed);
-          if (labelEl) labelEl.textContent = 'Free focus · ' + (lamp.dataset.course || 'the grind');
-          setArc(0);
+          if (labelEl) labelEl.textContent = 'Free focus';
         }
       } else if (status === 'paused') {
         var leftSec = Math.max(0, (maxBreak * 1000 - (now - pausedAt)) / 1000);
         elapsedEl.textContent = fmt(leftSec);
-        if (labelEl) labelEl.textContent = 'Break · ' + Math.ceil(leftSec / 60) + 'm budget left';
-        setArc(leftSec / maxBreak);
+        if (badgeTime) badgeTime.textContent = fmt(Math.ceil(leftSec));
+        if (labelEl) labelEl.textContent = 'Break time';
         lamp.classList.toggle('is-tight', leftSec <= 300);
         if (leftSec <= 0) {
-          if (endForm) endForm.submit();
-          return;
+          if (!done && endForm) { done = true; endForm.submit(); }
         }
       }
     }
 
     render();
-    var ticker = setInterval(render, 1000);
+    setInterval(render, 1000);
+
+    /* Smooth ring: repaint the arc every animation frame so it glides instead
+       of stepping once a second. Text/completion stay on the 1s interval above
+       so the session still ends on time in a background tab. */
+    if (fgCircle) {
+      (function animateRing() {
+        if (done) return;
+        var f = arcFraction();
+        if (f !== null) setArc(f);
+        requestAnimationFrame(animateRing);
+      })();
+    }
 
     /* ---------- sync with the server every 4s ---------- */
     var api = lamp.dataset.api;
@@ -250,7 +541,7 @@
               return;
             }
             var s = data.session;
-            if (s.id !== lamp.dataset.id) window.location.reload();
+            if (String(s.id) !== lamp.dataset.id) window.location.reload();
             if (s.status === 'paused' && (!pausedAt || new Date(s.paused_at).getTime() !== pausedAt)) {
               window.location.reload();
             }
@@ -268,80 +559,6 @@
 
   var lamps = document.querySelectorAll('.lamp');
   Array.prototype.forEach.call(lamps, startLamp);
-
-  /* ---------- Focus Toolbar & Shortcuts ---------- */
-  var zenBtn = document.getElementById('btn-zen');
-  if (zenBtn) {
-    function isFullscreen() {
-      return !!(document.fullscreenElement ||
-                document.webkitFullscreenElement ||
-                document.msFullscreenElement);
-    }
-    function requestZenFullscreen() {
-      var el = document.documentElement;
-      var req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-      if (req) {
-        var p = req.call(el);
-        if (p && p.catch) {
-          p.catch(function () { document.body.classList.remove('is-zen'); });
-        }
-      } else {
-        document.body.classList.add('is-zen');
-      }
-    }
-    function exitZenFullscreen() {
-      var ex = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
-      if (ex) ex.call(document);
-      document.body.classList.remove('is-zen');
-    }
-    var onFullscreenChange = function () {
-      document.body.classList.toggle('is-zen', isFullscreen());
-    };
-    zenBtn.addEventListener('click', function () {
-      if (isFullscreen()) exitZenFullscreen();
-      else requestZenFullscreen();
-    });
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
-    document.addEventListener('msfullscreenchange', onFullscreenChange);
-  }
-
-  var soundBtn = document.getElementById('btn-sound');
-  var soundLabel = document.getElementById('sound-label');
-  if (soundBtn) {
-    var refreshSoundUi = function () {
-      var muted = localStorage.getItem('yz_chime_muted') === 'true';
-      if (soundLabel) soundLabel.textContent = muted ? 'Chime off' : 'Chime on';
-      soundBtn.classList.toggle('is-muted', muted);
-    };
-    refreshSoundUi();
-    soundBtn.addEventListener('click', function () {
-      var muted = localStorage.getItem('yz_chime_muted') === 'true';
-      localStorage.setItem('yz_chime_muted', (!muted).toString());
-      refreshSoundUi();
-      if (muted) playChime();
-    });
-  }
-
-  /* Global focus hotkeys */
-  document.addEventListener('keydown', function (e) {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
-    if (e.key === ' ' || e.code === 'Space') {
-      var pauseBtn = document.getElementById('btn-pause');
-      var resumeBtn = document.getElementById('btn-resume');
-      if (pauseBtn) { e.preventDefault(); pauseBtn.click(); }
-      else if (resumeBtn) { e.preventDefault(); resumeBtn.click(); }
-    } else if (e.key === 'Escape') {
-      var endBtn = document.getElementById('btn-end');
-      if (endBtn) {
-        if (confirm('End this study session and record your progress?')) {
-          endBtn.click();
-        }
-      }
-    } else if (e.key === 'f' || e.key === 'F') {
-      if (zenBtn) zenBtn.click();
-    }
-  });
 
   /* ---------- Check-in: simple minutes input with live course impact ---------- */
   function initCheckin() {
@@ -369,16 +586,16 @@
       var newPct = total > 0 ? Math.min(100, Math.round((newCredits / total) * 100)) : 0;
       var remaining = Math.max(0, Math.round((total - newCredits) * 100) / 100);
 
-      if (convHours) convHours.textContent = addedHours.toFixed(2).replace(/\.00$/, '');
+      if (convHours) convHours.textContent = fmtNum(addedHours);
       if (btnMinText) btnMinText.textContent = m + ' min';
-      if (scbDone) scbDone.textContent = newCredits.toFixed(1) + 'h';
+      if (scbDone) scbDone.textContent = fmtNum(newCredits) + 'h';
       if (scbPct) scbPct.textContent = newPct + '%';
       if (scbBarFill) scbBarFill.style.width = newPct + '%';
       if (scbRemain) {
         if (total > 0 && newCredits >= total) {
-          scbRemain.innerHTML = '🎉 <strong style="color:var(--amber)">Will complete this course!</strong>';
+          scbRemain.innerHTML = '🎉 <strong style="color:var(--color-blue)">Will complete this course!</strong>';
         } else {
-          scbRemain.textContent = remaining.toFixed(1) + 'h remaining';
+          scbRemain.textContent = fmtNum(remaining) + 'h remaining';
         }
       }
     }
@@ -391,7 +608,7 @@
       pill.addEventListener('click', function () {
         var add = parseInt(pill.dataset.add, 10) || 0;
         var current = parseInt(minInput.value, 10) || 0;
-        var next = Math.max(0, current + add);
+        var next = Math.max(0, Math.min(9999, current + add));
         minInput.value = next;
         updatePreview(next);
       });

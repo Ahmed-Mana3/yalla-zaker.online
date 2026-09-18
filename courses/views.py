@@ -15,14 +15,31 @@ def course_index(request):
 
 @login_required
 def course_create(request):
-    form = CourseForm(request.POST or None)
+    initial = None
+    source = None
+    source_slug = (request.GET.get('from') or '').strip()
+    if source_slug:
+        source = Course.objects.filter(slug=source_slug, is_public=True).first()
+        if source:
+            initial = {
+                'title': source.title,
+                'link': source.link,
+                'notes': source.notes,
+                'start_date': source.start_date,
+                'total_hours': source.total_hours,
+            }
+    form = CourseForm(request.POST or None, initial=initial)
     if request.method == 'POST' and form.is_valid():
         course = form.save(commit=False)
         course.owner = request.user
         course.save()
         messages.success(request, f'{course.title} added to your desk.')
         return redirect('course_detail', slug=course.slug)
-    return render(request, 'courses/form.html', {'form': form, 'heading': 'Add a course'})
+    return render(request, 'courses/form.html', {
+        'form': form,
+        'heading': 'Add a course',
+        'source': source,
+    })
 
 
 @login_required

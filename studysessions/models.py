@@ -157,6 +157,8 @@ class StudySession(models.Model):
         self.duration_seconds = self.study_seconds()
         self.ended_at = now
         self.status = self.STATUS_FINISHED
+        if not self.checked_in and self.course_id is None:
+            self.checked_in = True
         self.save()
 
     def confirm_log(self, seconds):

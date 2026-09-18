@@ -13,7 +13,7 @@
           <span class="tag tag-live">{% if live.status == 'active' %}studying now{% else %}on a break{% endif %}</span>
           {% if live.course %} · {{ live.course.title }}{% endif %}
         {% elif is_online %}
-          <span class="tag">online · not studying</span>
+          <span class="tag tag-online">online · not studying</span>
         {% else %}
           <span class="tag">offline</span>
         {% endif %}
@@ -30,9 +30,30 @@
   </div>
   {% endif %}
 
+  {% if can_see_stats %}
+  <div class="panel">
+    <div class="panel-title"><h2>Study stats</h2></div>
+    <div class="stats">
+      <div class="stat">
+        <span class="num">{{ total_seconds|dur }}</span>
+        <span class="lab">total study time</span>
+      </div>
+      <div class="stat">
+        <span class="num">{{ today_seconds|dur }}</span>
+        <span class="lab">today</span>
+      </div>
+      <div class="stat">
+        <span class="num">{{ courses|length }}</span>
+        <span class="lab">course{{ courses|length|pluralize }}</span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="panel-title">
-    <h2>Public courses</h2>
-    {% if is_self %}<span class="section-meta">only shareable courses are visible to others</span>{% endif %}
+    <h2>{% if is_friend %}Courses{% else %}Public courses{% endif %}</h2>
+    {% if is_self %}<span class="section-meta">only shareable courses are visible to others</span>
+    {% elif is_friend %}<span class="section-meta">progress on every course on {{ subject.username }}'s desk</span>{% endif %}
   </div>
 
   {% if courses %}
@@ -43,10 +64,12 @@
   </div>
   {% else %}
   <div class="empty">
-    <strong>Nothing public on this desk.</strong>
+    <strong>{% if is_friend %}Nothing on this desk yet.{% else %}Nothing public on this desk.{% endif %}</strong>
     {% if is_self %}
       <p>Courses you share by link show up here for friends.</p>
       <a class="btn btn-primary" href="{% url 'course_create' %}">Add a course</a>
+    {% elif is_friend %}
+      <p>{{ subject.username }} hasn't added any courses.</p>
     {% else %}
       <p>This user hasn't shared any courses.</p>
     {% endif %}

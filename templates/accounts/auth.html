@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block title %}{% if mode == 'login' %}Log in · yalla zaker{% else %}Set up your desk · yalla zaker{% endif %}{% endblock %}
+{% block meta_description %}Log in to yalla zaker or set up your desk — add courses, start the focus lamp, and study with friends watching.{% endblock %}
+{% block mainclass %}auth-page{% endblock %}
+{% block body %}
+
+<div class="auth-scene">
+  <div class="auth-shape shape-ring-gold" aria-hidden="true"></div>
+  <div class="auth-shape shape-ring-magenta" aria-hidden="true"></div>
+  <div class="auth-shape shape-disk-blue" aria-hidden="true"></div>
+  <div class="auth-shape shape-disk-gold" aria-hidden="true"></div>
+
+  <div class="auth-card">
+    <div class="auth-modes{% if mode == 'signup' %} is-second{% endif %}" role="tablist" aria-label="Log in or sign up">
+      <span class="auth-modes-indicator" aria-hidden="true"></span>
+      <button type="button" class="auth-mode{% if mode == 'login' %} is-active{% endif %}" data-mode="login" role="tab" aria-selected="{% if mode == 'login' %}true{% else %}false{% endif %}" aria-controls="auth-login">Log in</button>
+      <button type="button" class="auth-mode{% if mode == 'signup' %} is-active{% endif %}" data-mode="signup" role="tab" aria-selected="{% if mode == 'signup' %}true{% else %}false{% endif %}" aria-controls="auth-signup">Set up your desk</button>
+    </div>
+
+    <div class="auth-panels">
+
+      {# ------------------------------------------------------------ LOGIN #}
+      <div class="auth-panel{% if mode == 'login' %} is-active{% endif %}" id="auth-login" data-mode="login" role="tabpanel">
+        <h1>Welcome back</h1>
+        <p class="auth-subtitle">Log in to light the lamp and charge the clock.</p>
+
+        {% if mode == 'login' and form.non_field_errors %}
+        <div class="auth-error-banner" role="alert">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          <span>{{ form.non_field_errors }}</span>
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'login' %}{% if request.GET.next %}?next={{ request.GET.next|urlencode }}{% endif %}" class="form-stack">
+          {% csrf_token %}
+          <div class="field">
+            <label for="{% if mode == 'login' %}id_username{% else %}alt_username{% endif %}">Username</label>
+            {% if mode == 'login' %}
+              {{ form.username }}
+            {% else %}
+              <input type="text" name="username" id="alt_username" autocapitalize="none" autocomplete="username">
+            {% endif %}
+          </div>
+          <div class="field">
+            <label for="{% if mode == 'login' %}id_password{% else %}alt_password{% endif %}">Password</label>
+            <div class="password-field">
+              {% if mode == 'login' %}
+                {{ form.password }}
+              {% else %}
+                <input type="password" name="password" id="alt_password" autocomplete="current-password">
+              {% endif %}
+              <button type="button" class="password-toggle" data-password-toggle aria-label="Show password" aria-pressed="false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              </button>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <a href="#" class="forgot-link">Forgot password?</a>
+          </div>
+          <button class="btn btn-primary btn-lg" type="submit">Log in</button>
+        </form>
+
+        <p class="auth-switch" style="margin-top:16px; font-size:0.86rem; color:var(--muted)">
+          No desk yet? <a href="{% url 'signup' %}">Create one.</a>
+        </p>
+      </div>
+
+      {# ------------------------------------------------------------ SIGNUP #}
+      <div class="auth-panel{% if mode == 'signup' %} is-active{% endif %}" id="auth-signup" data-mode="signup" role="tabpanel">
+        <h1>Set up your desk</h1>
+        <p class="auth-subtitle">Takes less than a minute.</p>
+
+        {% if mode == 'signup' and form.non_field_errors %}
+        <div class="auth-error-banner" role="alert">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          <span>{{ form.non_field_errors }}</span>
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'signup' %}" class="form-stack" id="signup-form" novalidate>
+          {% csrf_token %}
+
+          <div class="field">
+            <label for="{% if mode == 'signup' %}id_username{% else %}alt_username{% endif %}">Username</label>
+            {% if mode == 'signup' %}
+              {{ form.username }}
+            {% else %}
+              <input type="text" name="username" id="alt_username" autocapitalize="none" autocomplete="username">
+            {% endif %}
+            {% if mode == 'signup' and form.username.errors %}<div class="field-errors">{{ form.username.errors }}</div>{% endif %}
+          </div>
+
+          <div class="field">
+            <label for="{% if mode == 'signup' %}id_email{% else %}alt_email{% endif %}">Email</label>
+            {% if mode == 'signup' %}
+              {{ form.email }}
+            {% else %}
+              <input type="email" name="email" id="alt_email" autocomplete="email">
+            {% endif %}
+            {% if mode == 'signup' and form.email.errors %}<div class="field-errors">{{ form.email.errors }}</div>{% endif %}
+          </div>
+
+          <div class="field">
+            <label for="{% if mode == 'signup' %}id_password1{% else %}alt_password1{% endif %}">Password</label>
+            <div class="password-field">
+              {% if mode == 'signup' %}
+                {{ form.password1 }}
+              {% else %}
+                <input type="password" name="password1" id="alt_password1" autocomplete="new-password">
+              {% endif %}
+              <button type="button" class="password-toggle" data-password-toggle aria-label="Show password" aria-pressed="false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              </button>
+            </div>
+            <ul class="password-checklist" data-password-checklist>
+              <li data-rule="length"><span class="check-icon"></span>At least 8 characters</li>
+              <li data-rule="numeric"><span class="check-icon"></span>Not entirely numeric</li>
+              <li data-rule="common"><span class="check-icon"></span>Not a commonly used password</li>
+              <li data-rule="similar"><span class="check-icon"></span>Not too similar to your username/email</li>
+            </ul>
+            {% if mode == 'signup' and form.password1.errors %}<div class="field-errors">{{ form.password1.errors }}</div>{% endif %}
+          </div>
+
+          <div class="field">
+            <label for="{% if mode == 'signup' %}id_password2{% else %}alt_password2{% endif %}">Confirm password</label>
+            <div class="password-field">
+              {% if mode == 'signup' %}
+                {{ form.password2 }}
+              {% else %}
+                <input type="password" name="password2" id="alt_password2" autocomplete="new-password">
+              {% endif %}
+              <button type="button" class="password-toggle" data-password-toggle aria-label="Show password" aria-pressed="false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              </button>
+            </div>
+            <div class="password-match-indicator" data-password-match>
+              <span class="match-icon"></span>
+              <span class="match-text">Passwords must match</span>
+            </div>
+            {% if mode == 'signup' and form.password2.errors %}<div class="field-errors">{{ form.password2.errors }}</div>{% endif %}
+          </div>
+
+          <button class="btn btn-primary btn-lg" type="submit" id="signup-submit">Start studying</button>
+        </form>
+
+        <p class="auth-switch" style="margin-top:16px; font-size:0.86rem; color:var(--muted)">
+          Already a member? <a href="{% url 'login' %}">Log in.</a>
+        </p>
+      </div>
+
+    </div>
+
+    <p class="auth-footline">yalla zaker — the night desk.</p>
+  </div>
+</div>
+
+{% endblock %}

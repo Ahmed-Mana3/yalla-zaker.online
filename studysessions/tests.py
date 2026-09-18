@@ -1,6 +1,10 @@
+import datetime as dt
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from courses.models import Course
 from studysessions.models import StudySession
@@ -195,4 +199,55 @@ class StudySessionFlowTests(TestCase):
         self.assertEqual(self.course.hours_done, 10.0)
         self.assertIsNotNone(self.course.end_date)
         self.assertFalse(self.course.is_active_course())
+
+    def test_free_focus_session_end_is_checked_in(self):
+        """Ending a free-focus session logs it without a check-in prompt."""
+        session = StudySession.objects.create(user=self.user, course=None)
+        self.client.post(reverse('session_end'))
+        session.refresh_from_db()
+        self.assertEqual(session.status, StudySession.STATUS_FINISHED)
+        self.assertTrue(session.checked_in)
+
+    def test_free_focus_break_expiry_finishes_and_marks_checked_in(self):
+        """A free-focus session whose break expires is finished and resolved."""
+        session = StudySession.objects.create(user=self.user, course=None)
+        session.pause()
+        br = session._open_break()
+        br.started_at = timezone.now() - dt.timedelta(minutes=settings.MAX_BREAK_MINUTES + 1)
+        br.save()
+        session.refresh_lifecycle()
+        session.refresh_from_db()
+        self.assertEqual(session.status, StudySession.STATUS_FINISHED)
+        self.assertTrue(session.checked_in)
+
+    def test_course_break_expiry_keeps_checkin_pending(self):
+        """A course session whose break expires still asks for the check-in."""
+        session = StudySession.objects.create(user=self.user, course=self.course)
+        session.pause()
+        br = session._open_break()
+        br.started_at = timezone.now() - dt.timedelta(minutes=settings.MAX_BREAK_MINUTES + 1)
+        br.save()
+        session.refresh_lifecycle()
+        session.refresh_from_db()
+        self.assertEqual(session.status, StudySession.STATUS_FINISHED)
+        self.assertFalse(session.checked_in)
+
+    def test_session_log_clamps_huge_minutes(self):
+        """Check-in minutes are clamped to the same ceiling as the input max."""
+        session = StudySession.objects.create(
+            user=self.user,
+            course=self.course,
+            status=StudySession.STATUS_FINISHED,
+            duration_seconds=3600,
+            checked_in=False
+        )
+        response = self.client.post(reverse('session_log'), {
+            'session_id': session.id,
+            'minutes': '50000',
+        })
+        self.assertRedirects(response, reverse('study'))
+
+        session.refresh_from_db()
+        self.assertTrue(session.checked_in)
+        self.assertEqual(session.manual_seconds, 9999 * 60)
 

@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load studytags %}
 {% block title %}Study Lamp · yalla zaker{% endblock %}
+{% block body_class %}{% if pending %}is-focus-end{% endif %}{% endblock %}
 {% block body %}
 <div class="wrap page study-page">
 
@@ -41,10 +42,8 @@
           <circle class="bg" cx="100" cy="100" r="92" fill="none" stroke-width="7"></circle>
           <circle class="fg" cx="100" cy="100" r="92" fill="none" stroke-width="7" stroke-dasharray="0"></circle>
         </svg>
-        <span class="lamp-center-icon">✓</span>
         <div>
           <div class="lamp-timer">{{ pending.duration_seconds|dur }}</div>
-          <div class="lamp-label">Session Complete</div>
         </div>
       </div>
     </div>
@@ -60,9 +59,6 @@
         <h2 id="checkin-heading" class="checkin-title">
           How many minutes did you finish from the course?
         </h2>
-        <p class="checkin-explainer">
-          Enter how many minutes of course content you covered:
-        </p>
       </div>
 
       <form method="post" action="{% url 'session_log' %}" class="checkin-form" id="checkin-form">
@@ -88,7 +84,7 @@
           </div>
 
           <div class="simple-min-conv">
-            = <strong id="conv-hours">{{ pending.clocked_hours }}</strong> hrs added to course
+            = <strong id="conv-hours">{{ pending.clocked_hours|round2 }}</strong> hrs added to course
           </div>
 
           <div class="simple-quick-pills">
@@ -118,11 +114,12 @@
         </div>
 
         <div class="checkin-actions">
-          <button class="btn btn-primary btn-lg" type="submit" id="btn-submit-log">Log <span id="btn-min-text">{{ pending.inline_minutes }} min</span> · {{ pending.course.title }}</button>
+          <button class="btn btn-primary btn-lg" type="submit" id="btn-submit-log">Log&nbsp;<span id="btn-min-text">{{ pending.inline_minutes }}&nbsp;min</span>&nbsp;·&nbsp;<span class="btn-log-course">{{ pending.course.title }}</span></button>
           <button class="btn btn-ghost btn-md" type="submit" name="action" value="skip" id="skip-log">Skip (0 min)</button>
         </div>
       </form>
     </section>
+    </div>
 
     {% elif session %}
     {# ========================================================== ACTIVE / PAUSED MODE #}
@@ -131,16 +128,6 @@
       <div class="focus-status-tag {% if session.status == 'active' %}tag-active{% else %}tag-paused{% endif %}">
         <span class="pulse-dot"></span>
         {% if session.status == 'active' %}Focusing{% else %}On Break{% endif %}
-      </div>
-      <div class="focus-actions">
-        <button type="button" class="btn-tool" id="btn-zen" title="Toggle Zen Fullscreen Mode (F)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
-          <span class="btn-tool-label">Zen mode</span>
-        </button>
-        <button type="button" class="btn-tool" id="btn-sound" title="Toggle session end chime">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-          <span class="btn-tool-label" id="sound-label">Chime on</span>
-        </button>
       </div>
     </div>
 
@@ -177,42 +164,70 @@
           </div>
           <div class="lamp-label">
             {% if session.status == 'active' and session.target_minutes %}
-              Time left · {{ session.course.title|default:'Free Focus' }}
+              Time left
             {% elif session.status == 'active' %}
-              Free focus · {{ session.course.title|default:'The Grind' }}
+              Free focus
             {% else %}
-              Break · {{ max_break_minutes }}m max budget
+              Break time
             {% endif %}
           </div>
         </div>
       </div>
     </div>
 
-    {% if session.course %}
-    <div class="session-course-badge">
-      <span class="scb-label">Tracking:</span>
-      <strong>{{ session.course.title }}</strong>
-      <span class="scb-progress mono">({{ session.course.credits|hours }} / {{ session.course.total_hours|hours }})</span>
+    {% if session.status == 'paused' %}
+    <div class="break-badge" id="break-badge" role="status" aria-live="polite">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+      Break ends in <span class="bb-time mono" id="break-badge-time">--:--</span>
+    </div>
+    {% endif %}
+
+    <div class="lamp-course">
+      {% if session.status == 'active' %}
+        <b>Focusing</b> · {{ session.course.title|default:'Free focus' }}
+      {% else %}
+        <b>On a break</b> · {{ session.course.title|default:'Free focus' }}
+      {% endif %}
+    </div>
+    <div class="lamp-goal mono">
+      {% if session.status == 'active' and session.target_minutes %}
+        <span class="lg-emoji" aria-hidden="true">◐</span>
+        <span>goal {{ session.target_minutes|mmss }}</span>
+        <span class="lg-pct" id="goal-pct">0%</span>
+      {% elif session.status == 'active' %}
+        free flow · no timer
+      {% else %}
+        max break {{ max_break_minutes }} min
+      {% endif %}
+    </div>
+
+    {% if watchers %}
+    <div class="focus-watchers">
+      {% for f in watchers %}
+        {% include 'partials/avatar.html' with u=f size=28 %}
+      {% endfor %}
+      <span class="pulse-dot" aria-hidden="true"></span>
+      <span class="fw-label">{{ watchers|length }} friend{{ watchers|length|pluralize }} watching</span>
     </div>
     {% endif %}
 
     <div class="study-controls">
       {% if session.status == 'active' %}
         <form method="post" action="{% url 'session_pause' %}">{% csrf_token %}
-          <button class="btn btn-ghost btn-lg" type="submit" id="btn-pause" title="Pause session (Spacebar)">
+          <button class="btn btn-outline-light btn-lg" type="submit" id="btn-pause" title="Pause session">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
             Take a Break
           </button>
         </form>
         <form method="post" action="{% url 'session_end' %}" id="form-end">{% csrf_token %}
-          <button class="btn btn-danger btn-lg" type="submit" id="btn-end" title="Finish and log session (Esc)">
+          <button class="btn btn-danger btn-lg" type="submit" id="btn-end" title="Finish and log session">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>
-            End Session
+            End session
           </button>
         </form>
       {% else %}
         <form method="post" action="{% url 'session_resume' %}">{% csrf_token %}
-          <button class="btn btn-primary btn-lg" type="submit" id="btn-resume" title="Resume studying (Spacebar)">
+          <button class="btn btn-primary btn-lg" type="submit" id="btn-resume" title="Resume studying">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
             Resume Focus
           </button>
@@ -220,18 +235,13 @@
         <form method="post" action="{% url 'session_end' %}" id="form-end">{% csrf_token %}
           <button class="btn btn-danger btn-lg" type="submit" id="btn-end">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>
-            End Session
+            End session
           </button>
         </form>
       {% endif %}
     </div>
 
     <div class="session-footer-note">
-      <div class="sfn-shortcuts">
-        <span><kbd>Space</kbd> {% if session.status == 'active' %}Pause{% else %}Resume{% endif %}</span>
-        <span><kbd>Esc</kbd> End</span>
-        <span><kbd>F</kbd> Zen</span>
-      </div>
       <p class="session-note">
         {% if session.status == 'active' %}
           {% if session.target_minutes %}
@@ -243,6 +253,7 @@
           Break window active. You have <span class="mono">{{ max_break_minutes }} min</span> before the session auto-concludes.
         {% endif %}
       </p>
+    </div>
     </div>
 
 
@@ -262,6 +273,7 @@
           <div class="lamp-label">Desk is ready · Light it</div>
         </div>
       </div>
+    </div>
     </div>
 
     <form method="post" action="{% url 'session_start' %}" class="panel lamp-setup" id="setup-form">
@@ -287,29 +299,27 @@
 
           <div class="duration-grid" id="timer-chips">
             <button type="button" class="d-chip" data-min="25" aria-pressed="false">
-              <span class="d-chip-top"><b>25</b> min</span>
-              <span class="d-chip-sub">Pomodoro sprint</span>
+              <span class="d-chip-value">25</span>
+              <span class="d-chip-unit">min</span>
             </button>
             <button type="button" class="d-chip is-selected" data-min="45" aria-pressed="true">
               <span class="d-chip-badge">Best</span>
-              <span class="d-chip-top"><b>45</b> min</span>
-              <span class="d-chip-sub">Deep work block</span>
+              <span class="d-chip-value">45</span>
+              <span class="d-chip-unit">min</span>
             </button>
             <button type="button" class="d-chip" data-min="60" aria-pressed="false">
-              <span class="d-chip-top"><b>60</b> min</span>
-              <span class="d-chip-sub">Power hour</span>
+              <span class="d-chip-value">60</span>
+              <span class="d-chip-unit">min</span>
             </button>
             <button type="button" class="d-chip" data-min="90" aria-pressed="false">
-              <span class="d-chip-top"><b>90</b> min</span>
-              <span class="d-chip-sub">Ultradian flow</span>
+              <span class="d-chip-value">90</span>
+              <span class="d-chip-unit">min</span>
             </button>
             <button type="button" class="d-chip d-chip-other" data-other aria-pressed="false">
-              <span class="d-chip-top"><b>Custom</b></span>
-              <span class="d-chip-sub">Specify min</span>
+              <span class="d-chip-label">Custom</span>
             </button>
             <button type="button" class="d-chip d-chip-free" data-free aria-pressed="false">
-              <span class="d-chip-top"><b>Free flow</b></span>
-              <span class="d-chip-sub">No time limit</span>
+              <span class="d-chip-label">Free flow</span>
             </button>
           </div>
 
@@ -333,31 +343,27 @@
           </div>
 
           <div class="course-picker-list">
-            <label class="course-option is-active">
-              <input type="radio" name="course" value="" checked data-title="Free focus" data-desc="No course logging">
+            <label class="course-option{% if not request.GET.course %} is-active{% endif %}">
+              <input type="radio" name="course" value="" {% if not request.GET.course %}checked{% endif %} data-title="Free focus" data-desc="No course logging">
               <div class="co-body">
-                <div class="co-header">
+                <div class="co-head">
                   <span class="co-title">Free focus</span>
-                  <span class="tag tag-ghost">General study</span>
+                  <span class="co-tag">General study</span>
                 </div>
-                <span class="co-sub">Focus time clocked on desk without logging to a specific course</span>
+                <span class="co-note">Time clocked without logging to a course</span>
               </div>
             </label>
 
             {% for course in courses %}
-            <label class="course-option">
-              <input type="radio" name="course" value="{{ course.id }}" data-title="{{ course.title }}" data-desc="{{ course.remaining_hours|hours }} remaining">
+            <label class="course-option{% if request.GET.course == course.id|stringformat:'s' %} is-active{% endif %}">
+              <input type="radio" name="course" value="{{ course.id }}" {% if request.GET.course == course.id|stringformat:'s' %}checked{% endif %} data-title="{{ course.title }}" data-desc="{{ course.remaining_hours|hours }} remaining">
               <div class="co-body">
-                <div class="co-header">
+                <div class="co-head">
                   <span class="co-title">{{ course.title }}</span>
                   <span class="co-pct mono">{{ course.progress|default:0 }}%</span>
                 </div>
                 <div class="bar bar-xs">
                   <i style="width: {{ course.progress|default:0 }}%"></i>
-                </div>
-                <div class="co-foot">
-                  <span class="mono">{{ course.credits|hours }} done / {{ course.total_hours|hours }} course</span>
-                  <span class="co-remain mono">{{ course.remaining_hours|hours }} to go</span>
                 </div>
               </div>
             </label>
@@ -381,8 +387,6 @@
       </div>
     </form>
     {% endif %}
-
-  </div>
 
   {# ------------------------------------------------ Recent Desk History #}
   {% if recent %}

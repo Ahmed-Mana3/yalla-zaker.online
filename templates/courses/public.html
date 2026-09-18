@@ -50,7 +50,7 @@
     <hr class="divider">
     {% if request.user.is_authenticated %}
       <p class="section-meta">Gearing up with the same course?
-        <a href="{% url 'course_create' %}">Add it to your desk.</a></p>
+        <a href="{% url 'course_create' %}?from={{ course.slug }}">Add it to your desk.</a></p>
     {% else %}
       <a class="btn btn-primary" href="{% url 'signup' %}">Start studying too</a>
     {% endif %}

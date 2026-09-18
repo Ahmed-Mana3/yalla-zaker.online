@@ -1,130 +1,242 @@
 {% extends 'base.html' %}
 {% load studytags %}
-{% block title %}Your desk · yalla zaker{% endblock %}
+{% block title %}Desk · yalla zaker{% endblock %}
 {% block body %}
-<div class="wrap page">
-
-  <div class="panel-title" style="margin-bottom:20px">
-    <h1>{{ request.user.username }}'s desk</h1>
-    <span class="section-meta">the clock is the currency here</span>
-  </div>
-
+<div class="wrap page desk-v3">
+  <!-- 1. HEADER: Compact Greeting & Quick Stats -->
+  <header class="d3-header">
+    <div class="d3-welcome">
+      <div class="d3-date-pill">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        <span class="d3-date">{% now "l, M j" %}</span>
+      </div>
+      <h1 class="d3-greeting">
+        {% if hour < 12 %}Good morning,{% elif hour < 18 %}Good afternoon,{% else %}Good evening,{% endif %}
+        <span>{{ request.user.username }}</span>
+      </h1>
+    </div>
+    <!-- 3 Quick Metric Chips -->
+    <div class="d3-metrics" role="region" aria-label="Study stats">
+      <div class="d3-metric-card">
+        <span class="d3-metric-label">Today</span>
+        <span class="d3-metric-value mono">{{ today_seconds|dur }}</span>
+      </div>
+      <div class="d3-metric-card">
+        <span class="d3-metric-label">Best</span>
+        <span class="d3-metric-value mono">{{ longest.duration_seconds|default:0|dur }}</span>
+      </div>
+      <div class="d3-metric-card">
+        <span class="d3-metric-label">Total</span>
+        <span class="d3-metric-value mono">{{ total_seconds|dur }}</span>
+      </div>
+    </div>
+  </header>
+  <!-- 2. FOCUS HERO: Dynamic Active vs. Quick Start -->
   {% if active_session %}
-  <a class="panel lamp-banner" href="{% url 'study' %}" style="margin-bottom:22px">
-    <span>
-      <span class="eyebrow">Right now</span>
-      <strong>
-        {% if active_session.status == 'active' %}
-          You're on the clock for {{ active_session.course.title|default:'a focus session' }}.
-        {% else %}
-          You're on a break — <span class="mono">{{ max_break_minutes|default:30 }} min</span> or the session dies.
-        {% endif %}
-      </strong>
-    </span>
-    <span class="btn btn-primary btn-sm">Open the lamp</span>
-  </a>
+  <!-- Active / Paused Session State -->
+  <section class="d3-focus-banner is-active{% if active_session.status == 'paused' %} is-break{% endif %}" aria-label="Active Study Session">
+    <div class="d3-focus-clock">
+      <div class="desk-ring{% if active_session.status == 'paused' %} is-break{% endif %}" id="desk-ring"
+           data-status="{{ active_session.status }}"
+           {% if active_session.status == 'active' %}
+             data-elapsed="{{ active_session.study_seconds }}" data-target="{{ active_session.target_minutes|default:'' }}"
+           {% else %}
+             data-paused-at="{{ active_session.break_segments.first.started_at|date:'c' }}" data-max-break="{{ max_break_minutes }}"
+           {% endif %}
+           role="img"
+           aria-label="{{ active_session.study_seconds|dur }} on the clock">
+        <svg viewBox="0 0 96 96" aria-hidden="true">
+          <circle class="bg" cx="48" cy="48" r="42" fill="none" stroke-width="6"></circle>
+          <circle class="fg" cx="48" cy="48" r="42" fill="none" stroke-width="6"></circle>
+        </svg>
+        <span class="desk-ring-time" id="desk-ring-time">{{ active_session.study_seconds|dur }}</span>
+      </div>
+    </div>
+    <div class="d3-focus-info">
+      <div class="d3-focus-badge">
+        <span class="pulse-live-dot" aria-hidden="true"></span>
+        <span>{% if active_session.status == 'paused' %}Break in progress{% else %}Currently studying{% endif %}</span>
+      </div>
+      <h2 class="d3-focus-course" title="{{ active_session.course.title|default:'Free Focus' }}">{{ active_session.course.title|default:'Free Focus' }}</h2>
+    </div>
+    <div class="d3-focus-cta">
+      <a class="btn {% if active_session.status == 'paused' %}btn-gold{% else %}btn-green{% endif %}" href="{% url 'study' %}">
+        {% if active_session.status == 'paused' %}Resume Session{% else %}Open Session{% endif %}
+      </a>
+    </div>
+  </section>
+  {% else %}
+  <!-- Idle Quick Launcher -->
+  <section class="d3-launcher-banner" aria-label="Start studying">
+    <div class="d3-launcher-content">
+      <span class="d3-launcher-icon-wrap" aria-hidden="true">
+        <span class="d3-launcher-pulse"></span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+      </span>
+      <div class="d3-launcher-text">
+        <h2>Ready to focus?</h2>
+        <p class="d3-launcher-sub">Pick a course or start a clean session on your desk.</p>
+      </div>
+    </div>
+    <div class="d3-launcher-action">
+      <a class="btn btn-primary d3-start-btn" href="{% url 'study' %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        Start Studying
+      </a>
+    </div>
+  </section>
   {% endif %}
-
-  <div class="stats" style="margin-bottom:22px">
-    <div class="panel stat">
-      <span class="num mono">{{ today_seconds|dur }}</span>
-      <span class="lab">Studied today</span>
-    </div>
-    <div class="panel stat">
-      <span class="num mono">{{ longest.duration_seconds|default:0|dur }}</span>
-      <span class="lab">Longest non-stop session</span>
-    </div>
-    <div class="panel stat">
-      <span class="num mono">{{ total_seconds|dur }}</span>
-      <span class="lab">All time on the desk</span>
-    </div>
-  </div>
-
-  <div class="grid grid-main">
-    <div class="panel">
-      <div class="panel-title">
-        <h2>Courses on the desk</h2>
-        <a class="btn btn-ghost btn-sm" href="{% url 'course_create' %}">Add a course</a>
+  <!-- 3. MAIN WORKSPACE GRID: Courses + Sidebar -->
+  <div class="d3-grid">
+    <!-- Left Column: Courses -->
+    <main class="d3-main-col">
+      <div class="d3-section-bar">
+        <div class="d3-section-title-wrap">
+          <h2>Courses</h2>
+          {% if courses %}
+            <span class="d3-count-pill">{{ courses|length }}</span>
+          {% endif %}
+        </div>
       </div>
       {% if courses %}
-        <div class="grid grid-col" style="grid-template-columns: 1fr">
-          {% for course in courses %}
-            {% include 'partials/course_card.html' %}
-            {% if not forloop.last %}<hr class="divider">{% endif %}
-          {% endfor %}
-        </div>
+      <div class="d3-course-grid">
+        {% for course in courses %}
+        <article class="d3-course-card{% if active_session.course_id == course.id %} is-current{% endif %}{% if course.end_date %} is-done{% endif %}">
+          <div class="d3-course-main">
+            <div class="d3-course-top">
+              <a class="d3-course-title" href="{% url 'course_detail' slug=course.slug %}" title="{{ course.title }}">{{ course.title }}</a>
+              <div class="d3-course-tags">
+                {% if active_session.course_id == course.id %}
+                  <span class="tag tag-live">Active</span>
+                {% elif course.end_date %}
+                  <span class="tag tag-done">Done</span>
+                {% endif %}
+              </div>
+            </div>
+            <!-- Progress row -->
+            <div class="d3-progress-row">
+              <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ course.progress|default:0 }}" aria-label="{{ course.title }} progress">
+                <i style="width: {{ course.progress|default:0 }}%"></i>
+              </div>
+              <div class="d3-progress-nums mono">
+                <span>{{ course.credits|hours }} / {{ course.total_hours|hours }}</span>
+                <strong>{{ course.progress|default:0 }}%</strong>
+              </div>
+            </div>
+          </div>
+          <div class="d3-course-action">
+            {% if not course.end_date %}
+              <a class="btn btn-primary btn-sm" href="{% url 'study' %}?course={{ course.id }}">Study</a>
+            {% else %}
+              <a class="btn btn-ghost btn-sm" href="{% url 'course_detail' slug=course.slug %}">View</a>
+            {% endif %}
+          </div>
+        </article>
+        {% endfor %}
+      </div>
       {% else %}
-        <div class="empty">
-          <strong>No courses yet.</strong>
-          <p>Add the thing you're studying — the clock needs somewhere to point.</p>
-          <a class="btn btn-primary" href="{% url 'course_create' %}">Add your first course</a>
+      <div class="d3-empty-state">
+        <div class="d3-empty-icon" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
         </div>
+        <h3>No courses added yet</h3>
+        <p>Add the subject you are tackling today — each hour moves your dial forward.</p>
+        <a class="btn btn-primary btn-sm" href="{% url 'course_create' %}">+ Add your first course</a>
+      </div>
       {% endif %}
-    </div>
-
-    <div style="display:flex; flex-direction:column; gap:18px">
-      <div class="panel">
-        <div class="panel-title">
-          <h2>Friends</h2>
-          <a class="section-meta" href="{% url 'friends' %}">Manage</a>
+    </main>
+    <!-- Right Column: Sidebar (Social, Challenges, Roadmaps) -->
+    <aside class="d3-aside-col">
+      <!-- Friends Widget -->
+      <section class="d3-panel" aria-labelledby="side-friends-title">
+        <div class="d3-panel-head">
+          <div class="d3-panel-title-group">
+            <span class="d3-panel-icon" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </span>
+            <h3 id="side-friends-title">Friends</h3>
+          </div>
+          {% if friends_live_count %}
+            <span class="d3-live-badge"><span class="pulse-dot-sm" aria-hidden="true"></span>{{ friends_live_count }} studying</span>
+          {% endif %}
+          <a class="d3-panel-link" href="{% url 'friends' %}">Manage</a>
         </div>
         {% if friend_rows %}
-          {% for row in friend_rows %}
-          <div class="friend-row">
-            <span class="status-dot status-{{ row.status }}"></span>
-            <a class="grow name" href="{% url 'profile' username=row.friend.username %}">{{ row.friend.username }}</a>
-            <span class="sub">
-              {% if row.status == 'live' %}studying now{% elif row.status == 'paused' %}on a break{% elif row.status == 'online' %}online{% else %}{{ row.today_count }} sessions today{% endif %}
-            </span>
-          </div>
+        <ul class="d3-friend-list">
+          {% for row in friend_rows|slice:":5" %}
+          <li>
+            <a class="d3-friend-row" href="{% url 'profile' username=row.friend.username %}">
+              <div class="d3-friend-avatar-wrap">
+                {% include 'partials/avatar.html' with u=row.friend size=28 %}
+                {% if row.status == 'live' or row.status == 'paused' %}
+                  <span class="d3-avatar-pulse-ring" aria-hidden="true"></span>
+                {% endif %}
+              </div>
+              <span class="d3-friend-name">{{ row.friend.username }}</span>
+              <span class="d3-friend-status d3-status-{{ row.status }}">{{ row.label }}</span>
+            </a>
+          </li>
           {% endfor %}
+        </ul>
         {% else %}
-          <div class="empty" style="padding:16px">
-            <p style="margin:0">No friends on the desk yet. Add some to see who's studying.</p>
-            <a class="btn btn-ghost btn-sm" href="{% url 'friends' %}">Add friends</a>
-          </div>
-        {% endif %}
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">
-          <h2>Roadmap</h2>
-          <a class="section-meta" href="{% url 'roadmaps' %}">All</a>
+        <div class="d3-side-empty">
+          <p>Study with friends and see each other live.</p>
+          <a href="{% url 'friends' %}" class="d3-empty-btn">Find Friends</a>
         </div>
-        {% for card in roadmap_cards %}
-          <a class="lamp-banner" href="{% url 'roadmap_detail' slug=card.roadmap.slug %}" style="padding:10px 12px; text-decoration:none; margin-bottom:8px; border-radius:8px">
-            <span>
-              <strong>{{ card.roadmap.title }}</strong>
-              <span style="display:block; color:var(--faint); font-size:0.8rem; margin-top:2px">
-                {{ card.step_count }} course{{ card.step_count|pluralize }} · {{ card.total_hours|hours }} planned
-              </span>
+        {% endif %}
+      </section>
+      <!-- Challenges Widget -->
+      <section class="d3-panel" aria-labelledby="side-challenges-title">
+        <div class="d3-panel-head">
+          <div class="d3-panel-title-group">
+            <span class="d3-panel-icon" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1H7.5a1.5 1.5 0 0 1-1.5-1.5V14"></path><path d="M14 14.66V17c0 .55.45 1 1 1h1.5a1.5 1.5 0 0 0 1.5-1.5V14"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
             </span>
-            <span class="btn btn-ghost btn-sm" style="pointer-events:none">View</span>
+            <h3 id="side-challenges-title">Challenges</h3>
+          </div>
+          <a class="d3-panel-link" href="{% url 'challenges' %}">All</a>
+        </div>
+        {% for card in challenge_cards|slice:":2" %}
+          <a class="d3-side-card" href="{% url 'challenge_detail' pk=card.challenge.pk %}">
+            <div class="d3-side-card-top">
+              <span class="d3-side-card-title">{{ card.challenge.title }}</span>
+              <span class="d3-side-chip">
+                {% if card.days_left == 0 %}ends today{% elif card.days_left == 1 %}1d left{% else %}{{ card.days_left }}d left{% endif %}
+              </span>
+            </div>
+            <span class="d3-side-card-meta mono">{{ card.total_seconds|dur }} logged</span>
           </a>
         {% empty %}
-          <div class="empty" style="padding:16px">
-            <p style="margin:0 0 6px">No roadmap yet. Group courses around one goal.</p>
-            <a class="btn btn-ghost btn-sm" href="{% url 'roadmap_create' %}">Start a roadmap</a>
+          <div class="d3-side-empty">
+            <p>Race the clock together in challenges.</p>
+            <a href="{% url 'challenge_create' %}" class="d3-empty-btn">+ Create Challenge</a>
           </div>
         {% endfor %}
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">
-          <h2>Active challenge</h2>
-          <a class="section-meta" href="{% url 'challenges' %}">All</a>
+      </section>
+      <!-- Roadmaps Widget -->
+      <section class="d3-panel" aria-labelledby="side-roadmaps-title">
+        <div class="d3-panel-head">
+          <div class="d3-panel-title-group">
+            <span class="d3-panel-icon" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
+            </span>
+            <h3 id="side-roadmaps-title">Roadmaps</h3>
+          </div>
+          <a class="d3-panel-link" href="{% url 'roadmaps' %}">All</a>
         </div>
-        {% for challenge in active_challenges %}
-          <p style="margin-bottom:6px">{{ challenge.title }}</p>
-          <a class="btn btn-primary btn-sm" href="{% url 'challenge_detail' pk=challenge.pk %}">See the board</a>
+        {% for card in roadmap_cards|slice:":2" %}
+          <a class="d3-side-card" href="{% url 'roadmap_detail' slug=card.roadmap.slug %}">
+            <span class="d3-side-card-title">{{ card.roadmap.title }}</span>
+            <span class="d3-side-card-meta mono">{{ card.step_count }} courses · {{ card.total_hours|hours }}</span>
+          </a>
         {% empty %}
-          <div class="empty" style="padding:16px">
-            <p style="margin:0 0 6px">No challenge running.</p>
-            <a class="btn btn-ghost btn-sm" href="{% url 'challenge_create' %}">Start one</a>
+          <div class="d3-side-empty">
+            <p>Group courses around a single milestone.</p>
+            <a href="{% url 'roadmap_create' %}" class="d3-empty-btn">+ Create Roadmap</a>
           </div>
         {% endfor %}
-      </div>
-    </div>
+      </section>
+    </aside>
   </div>
 </div>
 {% endblock %}

@@ -7,17 +7,15 @@ from django.utils import timezone
 
 from courses.models import Course
 
+from accounts.models import Friendship
+
 from .models import StudySession
 
 
 def _current(request):
     session = StudySession.current_for(request.user)
     if session:
-        if session.status == StudySession.STATUS_ACTIVE and session.target_minutes and \
-                session.study_seconds() >= session.target_minutes * 60:
-            session.finish()
-        elif session.status == StudySession.STATUS_PAUSED:
-            session.refresh_lifecycle()
+        session.refresh_lifecycle()
     return session
 
 
@@ -35,6 +33,11 @@ def study_index(request):
     today_seconds = sum(s.duration_seconds for s in today_sessions)
     today_count = today_sessions.count()
 
+    watchers = [
+        friend for friend in Friendship.friends_of(request.user)
+        if StudySession.live_for(friend)
+    ]
+
     ctx = {
         'session': session,
         'pending': pending,
@@ -42,6 +45,7 @@ def study_index(request):
         'recent': recent,
         'today_seconds': today_seconds,
         'today_count': today_count,
+        'watchers': watchers,
         'max_break_minutes': settings.MAX_BREAK_MINUTES,
     }
     return render(request, 'studysessions/index.html', ctx)
@@ -81,7 +85,7 @@ def session_pause(request):
         return redirect('study')
     session = _current(request)
     if session and session.pause():
-        messages.info(request, 'Break starts now. You have 30 minutes — then the session dies.')
+        messages.info(request, f'Break starts now. You have {settings.MAX_BREAK_MINUTES} minutes — then the session dies.')
     return redirect('study')
 
 
@@ -109,7 +113,7 @@ def session_end(request):
         session.finish()
         ms = session.duration_seconds / 60
         if has_course:
-            messages.success(request, f'Session finished — {ms:.0f} min clocked. How many hours did you finish from the course?')
+            messages.success(request, f'Session finished — {ms:.0f} min clocked. How many minutes did you finish from the course?')
         else:
             session.checked_in = True
             session.save()
@@ -134,17 +138,18 @@ def session_log(request):
     raw_minutes = (request.POST.get('minutes') or '').strip()
     raw_hours = (request.POST.get('hours') or '').strip()
 
+    MAX_CHECKIN_MINUTES = 9999
     total_hours = 0.0
     has_input = False
     if raw_hours:
         try:
-            total_hours += max(0.0, float(raw_hours))
+            total_hours += min(max(0.0, float(raw_hours)), MAX_CHECKIN_MINUTES / 60.0)
             has_input = True
         except ValueError:
             pass
     if raw_minutes:
         try:
-            total_hours += max(0.0, float(raw_minutes) / 60.0)
+            total_hours += min(max(0.0, float(raw_minutes)), MAX_CHECKIN_MINUTES) / 60.0
             has_input = True
         except ValueError:
             pass

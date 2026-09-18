@@ -193,3 +193,71 @@ class RoadmapTests(TestCase):
         self.assertTrue(data['ok'])
         self.assertEqual(data['step_id'], step.id)
         self.assertFalse(RoadmapCourse.objects.filter(id=step.id).exists())
+
+
+class AddToDeskTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='tester', password='password123')
+        self.other = User.objects.create_user(username='owner', password='password123')
+        self.client = Client()
+        self.client.login(username='tester', password='password123')
+
+    def test_create_from_shared_course_prefills_form(self):
+        source = Course.objects.create(
+            owner=self.other, title='Mathematics Bootcamp', total_hours=24.0,
+            link='https://example.com/math', notes='Weekly drills',
+            start_date='2026-01-05', is_public=True,
+        )
+        response = self.client.get(reverse('course_create'), {'from': source.slug})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Prefilled from owner\'s shared course')
+        form = response.context['form']
+        self.assertEqual(form['title'].value(), 'Mathematics Bootcamp')
+        self.assertEqual(form['link'].value(), 'https://example.com/math')
+        self.assertEqual(form['notes'].value(), 'Weekly drills')
+        self.assertEqual(float(form['total_hours'].value()), 24.0)
+
+    def test_create_from_own_public_course_prefills(self):
+        source = Course.objects.create(
+            owner=self.user, title='My Algorithm Course', total_hours=8.0, is_public=True,
+        )
+        response = self.client.get(reverse('course_create'), {'from': source.slug})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['form']['title'].value(), 'My Algorithm Course')
+
+    def test_create_from_private_course_ignored(self):
+        source = Course.objects.create(
+            owner=self.other, title='Secret Course', total_hours=8.0, is_public=False,
+        )
+        response = self.client.get(reverse('course_create'), {'from': source.slug})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Prefilled from')
+        self.assertIsNone(response.context['form']['title'].value())
+
+    def test_submit_prefill_creates_own_course(self):
+        source = Course.objects.create(
+            owner=self.other, title='Python Path', total_hours=18.0,
+            notes='Build 5 projects', is_public=True,
+        )
+        response = self.client.post(reverse('course_create'), {
+            'title': source.title,
+            'link': source.link,
+            'notes': source.notes,
+            'start_date': '2026-01-05',
+            'total_hours': str(source.total_hours),
+            'is_public': 'on',
+        })
+        created = Course.objects.get(owner=self.user, title='Python Path')
+        self.assertRedirects(response, reverse('course_detail', kwargs={'slug': created.slug}))
+        self.assertEqual(created.total_hours, 18.0)
+        self.assertEqual(created.notes, 'Build 5 projects')
+
+    def test_public_page_links_prefill(self):
+        source = Course.objects.create(
+            owner=self.other, title='Calculus', total_hours=15.0, is_public=True,
+        )
+        response = self.client.get(reverse('public:course_public', kwargs={'slug': source.slug}))
+        self.assertContains(
+            response,
+            f'href="{reverse("course_create")}?from={source.slug}"',
+        )

@@ -100,7 +100,65 @@ class OnlineStatusTests(TestCase):
         response = self.client.get('/dashboard/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Fullstack Track')
-        self.assertContains(response, '1 course · 12h planned')
+        self.assertContains(response, '1 courses · 12h')
+
+    def test_dashboard_active_session_renders_focus_banner(self):
+        course = Course.objects.create(owner=self.alice, title='Linear Algebra', total_hours=40)
+        StudySession.objects.create(user=self.alice, course=course, status=StudySession.STATUS_ACTIVE, target_minutes=30)
+        self.client.force_login(self.alice)
+        response = self.client.get('/dashboard/')
+        self.assertContains(response, 'id="desk-ring"')
+        self.assertContains(response, 'data-status="active"')
+        self.assertContains(response, 'data-target="30"')
+        self.assertContains(response, 'Linear Algebra')
+        self.assertContains(response, 'Open Session')
+        self.assertNotContains(response, 'Ready to focus?')
+
+
+class FriendProfileStatsTests(TestCase):
+    def setUp(self):
+        self.alice = User.objects.create_user(username='alice', password='pw')
+        self.bob = User.objects.create_user(username='bob', password='pw')
+        self.carol = User.objects.create_user(username='carol', password='pw')
+        Friendship.objects.create(from_user=self.alice, to_user=self.bob, status=Friendship.STATUS_ACCEPTED)
+
+    def test_friend_sees_total_study_time_and_course_progress(self):
+        course = Course.objects.create(owner=self.bob, title='Physics', total_hours=10, hours_done=2.5, is_public=False)
+        StudySession.objects.create(user=self.bob, course=course, status=StudySession.STATUS_FINISHED, duration_seconds=3600)
+        self.client.force_login(self.alice)
+        response = self.client.get(f'/users/{self.bob.username}/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '>1h 0m</span>')
+        self.assertContains(response, 'total study time')
+        self.assertContains(response, 'Physics')
+        self.assertContains(response, '2.5h done / 10h course')
+        self.assertContains(response, 'Courses')
+
+    def test_friend_sees_all_courses_not_just_public(self):
+        Course.objects.create(owner=self.bob, title='Secret Prep', total_hours=5, is_public=False)
+        self.client.force_login(self.alice)
+        self.assertContains(
+            self.client.get(f'/users/{self.bob.username}/'),
+            'Secret Prep',
+        )
+
+    def test_stranger_does_not_see_stats_or_private_courses(self):
+        Course.objects.create(owner=self.bob, title='Secret Prep', total_hours=5, is_public=False)
+        Course.objects.create(owner=self.bob, title='Open Course', total_hours=5, is_public=True, hours_done=1)
+        StudySession.objects.create(user=self.bob, status=StudySession.STATUS_FINISHED, duration_seconds=7200)
+        self.client.force_login(self.carol)
+        response = self.client.get(f'/users/{self.bob.username}/')
+        self.assertContains(response, 'Open Course')
+        self.assertNotContains(response, 'total study time')
+        self.assertNotContains(response, 'Secret Prep')
+
+    def test_own_profile_shows_stats(self):
+        Course.objects.create(owner=self.alice, title='Math', total_hours=10)
+        StudySession.objects.create(user=self.alice, status=StudySession.STATUS_FINISHED, duration_seconds=5400)
+        self.client.force_login(self.alice)
+        response = self.client.get(f'/users/{self.alice.username}/')
+        self.assertContains(response, '1h 30m')
+        self.assertContains(response, 'total study time')
 
 
 class SeoTests(TestCase):

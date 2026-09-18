@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -47,7 +47,7 @@ def signup(request):
         user = form.save()
         messages.success(request, f'Welcome aboard, {user.username}. Add your first course.')
         return redirect('login')
-    return render(request, 'accounts/signup.html', {'form': form})
+    return render(request, 'accounts/auth.html', {'form': form, 'mode': 'signup'})
 
 
 def logout_view(request):
@@ -65,35 +65,50 @@ def dashboard(request):
     if cur:
         cur.refresh_lifecycle()
 
-    courses = user.courses.all()
+    courses = list(user.courses.all())
+    courses.sort(key=lambda c: (
+        1 if c.end_date else 0,
+        -(c.progress() or 0),
+        c.title.lower(),
+    ))
     friends = Friendship.friends_of(user)
+    today = timezone.now().date()
     active_challenges = Challenge.objects.filter(
-        members__user=user, starts_at__lte=timezone.now().date(), ends_at__gte=timezone.now().date()
+        members__user=user, starts_at__lte=today, ends_at__gte=today
     ).distinct()
 
     friend_rows = []
     for friend in friends:
         live = StudySession.live_for(friend)
-        today = StudySession.objects.filter(
-            user=friend, status='finished', started_at__date=timezone.now().date()
+        today_sessions = StudySession.objects.filter(
+            user=friend, status='finished', started_at__date=today
         )
         status, label = online_status(friend)
         friend_rows.append({
             'friend': friend,
             'live': live,
-            'today_count': today.count(),
+            'today_count': today_sessions.count(),
             'status': status,
             'label': label,
         })
+    status_rank = {'live': 0, 'paused': 1, 'online': 2, 'offline': 3}
+    friend_rows.sort(key=lambda r: (status_rank.get(r['status'], 9), r['friend'].username.lower()))
 
     stats = user.study_sessions.filter(status='finished')
     today_seconds = sum(
-        s.duration_seconds for s in stats.filter(started_at__date=timezone.now().date())
+        s.duration_seconds for s in stats.filter(started_at__date=today)
     )
     longest = stats.order_by('-duration_seconds').first()
     total_seconds = sum(s.duration_seconds for s in stats)
 
-    active = ChallengeMember.member_stats(user, active_challenges.first()) if active_challenges else None
+    challenge_cards = [
+        {
+            'challenge': challenge,
+            'total_seconds': ChallengeMember.member_stats(user, challenge)['total_seconds'],
+            'days_left': (challenge.ends_at - today).days,
+        }
+        for challenge in active_challenges
+    ]
 
     roadmaps = user.roadmaps.prefetch_related('steps').all()
     roadmap_cards = [
@@ -108,7 +123,9 @@ def dashboard(request):
     ctx = {
         'courses': courses,
         'friend_rows': friend_rows,
+        'friends_live_count': sum(1 for r in friend_rows if r['status'] in ('live', 'paused')),
         'active_challenges': active_challenges,
+        'challenge_cards': challenge_cards,
         'today_seconds': today_seconds,
         'longest': longest,
         'total_seconds': total_seconds,
@@ -116,6 +133,7 @@ def dashboard(request):
         'friends': friends,
         'max_break_minutes': settings.MAX_BREAK_MINUTES,
         'roadmap_cards': roadmap_cards,
+        'hour': timezone.localtime().hour,
     }
     return render(request, 'accounts/dashboard.html', ctx)
 
@@ -134,9 +152,29 @@ def profile_edit(request):
 def profile_view(request, username):
     user = get_object_or_404(User, username=username)
     live = StudySession.live_for(user)
-    courses = Course.objects.filter(owner=user, is_public=True)
+    is_self = request.user.is_authenticated and user == request.user
     is_friend = request.user.is_authenticated and request.user != user and Friendship.are_friends(request.user, user)
     profile, _ = Profile.objects.get_or_create(user=user)
+
+    # Hours and course progress are shared with the owner and their friends.
+    can_see_stats = is_self or is_friend
+    if can_see_stats:
+        finished = user.study_sessions.filter(status='finished')
+        agg = finished.aggregate(total=Sum('duration_seconds'))
+        total_seconds = agg['total'] or 0
+        today = timezone.now().date()
+        today_seconds = sum(
+            s.duration_seconds for s in finished.filter(started_at__date=today)
+        )
+    else:
+        total_seconds = 0
+        today_seconds = 0
+
+    courses = Course.objects.filter(owner=user)
+    if not can_see_stats:
+        courses = courses.filter(is_public=True)
+    courses = list(courses)
+
     ctx = {
         'subject': user,
         'profile': profile,
@@ -144,9 +182,11 @@ def profile_view(request, username):
         'is_online': profile.is_online(),
         'courses': courses,
         'is_friend': is_friend,
+        'is_self': is_self,
+        'can_see_stats': can_see_stats,
+        'total_seconds': total_seconds,
+        'today_seconds': today_seconds,
     }
-    if user.is_authenticated and user == request.user:
-        ctx['is_self'] = True
     return render(request, 'accounts/profile.html', ctx)
 
 
