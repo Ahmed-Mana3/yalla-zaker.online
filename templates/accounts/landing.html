@@ -1,155 +1,68 @@
 {% extends 'base.html' %}
-{% block title %}yalla zaker — study tracker, focus clock, and friendly challenges{% endblock %}
-{% block meta_description %}yalla zaker turns your courses into a clock, your friends into witnesses, and your study sessions into a streak you don't want to break. Track study hours, run the 30-minute focus lamp, and race friends.{% endblock %}
-{% block og_title %}yalla zaker — study tracker, focus clock, and friendly challenges{% endblock %}
+{% block title %}yalla zaker — Study like it matters{% endblock %}
+{% block meta_description %}yalla zaker turns your courses into a clock, your friends into witnesses, and your study sessions into a streak you don't want to break.{% endblock %}
+{% block og_title %}yalla zaker — Study like it matters{% endblock %}
 {% block og_description %}Turn your courses into a clock, your friends into witnesses, and your study sessions into a streak you don't want to break.{% endblock %}
 {% block mainclass %}landing-page{% endblock %}
+
+{% block head %}
+
+{% endblock %}
+
 {% block body %}
 
-<section class="hero">
-  <div class="hero-split">
-    <div class="hero-copy">
-      <h1>Come on.<br>Stud<svg class="y-clock" viewBox="0 0 40 40" fill="none" aria-hidden="true"><circle class="ring" cx="20" cy="20" r="17" stroke-width="3"></circle><line class="hand hour" x1="20" y1="20" x2="20" y2="9" stroke-width="3" stroke-linecap="round"></line><line class="hand min" x1="20" y1="20" x2="28" y2="20" stroke-width="2.5" stroke-linecap="round"></line></svg><span class="sr-only">y</span>.</h1>
-      <p class="sub">
-        yalla zaker turns your courses into a clock, your friends into witnesses,
-        and your study sessions into something you don't want to lose.
-      </p>
-      <div class="hero-cta">
-        <a class="btn btn-primary btn-lg" href="{% url 'signup' %}">Start studying</a>
-      </div>
+<section class="landing-hero">
+  <div class="landing-hero-inner wrap">
+    <div class="hero-badge">Deep work, on the clock</div>
+    <h1 class="hero-title">Study like it matters.</h1>
+    <p class="hero-sub">No fake streaks. Just a visible clock, 30-minute breaks, and friends who can see you working.</p>
+    
+    <div class="hero-actions">
+      <a class="btn btn-primary btn-xl" href="{% url 'signup' %}">Start studying</a>
+      <a class="btn btn-ghost-dark btn-xl" href="#features">See how it works</a>
     </div>
 
-    <div class="hero-visual" aria-hidden="true">
-      <div class="session-mock">
-        <div class="sm-ring-wrap">
-          <svg class="sm-ring" viewBox="0 0 200 200">
-            <circle class="bg" cx="100" cy="100" r="90" fill="none" stroke-width="12"></circle>
-            <circle class="fg" cx="100" cy="100" r="90" fill="none" stroke-width="12"></circle>
-          </svg>
-          <div class="sm-center">
-            <div>
-              <div class="sm-time mono" id="live-clock">00:00</div>
-              <div class="sm-sub">deep work · on the clock</div>
-            </div>
-          </div>
-          <span class="sm-live-pill"><span class="pulse-live-dot"></span> studying now</span>
+
+  </div>
+</section>
+
+<section class="landing-features" id="features">
+  <div class="wrap">
+    <div class="feature-stack">
+      <div class="feature-row">
+        <div class="feat-num">01</div>
+        <div class="feat-content">
+          <h2>Your Desk.</h2>
+          <p>Set a target for each course. Hit start. The progress bar fills only when the clock is ticking.</p>
         </div>
-        <div class="sm-row">
-          <span class="avatar avatar-30" style="--hue:200">A</span>
-          <div class="grow">
-            <span class="sm-name">Organic Chemistry · 101</span>
-            <span class="sm-meta">13h 24m in · 46 min to goal</span>
-          </div>
-          <span class="sm-dot-gold"></span>
+      </div>
+      <div class="feature-row">
+        <div class="feat-num">02</div>
+        <div class="feat-content">
+          <h2>The 30-minute Rule.</h2>
+          <p>Pause your session when you need it, but a break buys you exactly 30 minutes. Go over, and the session ends.</p>
+        </div>
+      </div>
+      <div class="feature-row">
+        <div class="feat-num">03</div>
+        <div class="feat-content">
+          <h2>Friendly Fire.</h2>
+          <p>Add friends. Watch them go live. Run challenges for the longest non-stop deep work.</p>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<section class="feature-section" id="features">
-  <div class="feature-inner">
-    <header class="closing-strip">
-      <div class="eyebrow">The method</div>
-      <h2>Three rules keep the desk honest.</h2>
-      <p>No streak theatre. Just a visible clock, a break that actually ends, and friends who can see you working.</p>
-    </header>
-
-    <div class="tabs">
-      <div class="tabs-head" role="tablist" aria-label="How yalla zaker works">
-        <button type="button" class="tab is-active" data-tab="desk" role="tab" aria-selected="true" aria-controls="panel-desk">Your desk</button>
-        <button type="button" class="tab" data-tab="rule" role="tab" aria-selected="false" aria-controls="panel-rule">The 30-minute rule</button>
-        <button type="button" class="tab" data-tab="friends" role="tab" aria-selected="false" aria-controls="panel-friends">Friendly fire</button>
-        <span class="tab-underline" aria-hidden="true"></span>
-      </div>
-
-      <div class="tab-panel is-active" id="panel-desk" data-panel="desk" role="tabpanel">
-        <div class="tp-illustration">
-          <div class="tp-progress-card">
-            <div class="tp-progress-head">
-              <strong>Algebra II — +3h 12m this session</strong>
-              <span>35%</span>
-            </div>
-            <div class="bar"><i style="width: 35%"></i></div>
-            <div class="tp-progress-labels"><b>14h done</b><span>of 40h</span></div>
-          </div>
-        </div>
-        <p class="tp-caption">Add the course you're grinding and tell it how many hours it needs. Every session charges the clock — the progress bar answers for you.</p>
-      </div>
-
-      <div class="tab-panel" id="panel-rule" data-panel="rule" role="tabpanel">
-        <div class="tp-illustration">
-          <div class="tp-countdown">
-            <svg viewBox="0 0 168 168">
-              <circle class="bg" cx="84" cy="84" r="70" fill="none" stroke-width="8"></circle>
-              <circle class="fg" cx="84" cy="84" r="70" fill="none" stroke-width="8"></circle>
-            </svg>
-            <span class="tc-center mono">24:11</span>
-          </div>
-          <span class="tp-badge">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-            Break ends in 24:11
-          </span>
-        </div>
-        <p class="tp-caption">Pause your session, but a break only buys you 30 minutes. Go past it and the session is over — the clock keeps what you earned.</p>
-      </div>
-
-      <div class="tab-panel" id="panel-friends" data-panel="friends" role="tabpanel">
-        <div class="tp-illustration">
-          <div class="tp-avatars">
-            <span class="avatar" style="--hue:130">A</span>
-            <span class="avatar" style="--hue:200">M</span>
-            <span class="avatar" style="--hue:30">S</span>
-            <span class="avatar" style="--hue:260">R</span>
-            <span class="live-indicator" title="3 friends studying now" aria-hidden="true"></span>
-          </div>
-        </div>
-        <p class="tp-caption">Add friends, watch their sessions go live, and run challenges for who can hold the longest non-stop deep work.</p>
-      </div>
+<section class="landing-cta">
+  <div class="wrap">
+    <div class="cta-box">
+      <h2>Ready to focus?</h2>
+      <a class="btn btn-primary btn-xl" href="{% url 'signup' %}">Create your desk</a>
     </div>
-  </div>
-</section>
-
-<section class="cta-band" id="start">
-  <div class="cta-inner">
-    <h2>yalla zaker — the night desk.<br>Study like it matters.</h2>
-    <p>Your sessions run on a visible clock. Your friends can watch. Breaks end at 30 minutes.</p>
-    <a class="btn btn-accent btn-lg" href="{% url 'signup' %}">Start studying</a>
   </div>
 </section>
 
 {% endblock %}
 
-{% block scripts %}
-<script>
-  (function () {
-    var el = document.getElementById('live-clock');
-    if (!el) return;
-    var start = Date.now() - Math.floor(Math.random() * 3600 * 1000) - 2520000;
-    function tick() {
-      var s = Math.floor((Date.now() - start) / 1000);
-      var h = Math.floor(s / 3600);
-      var m = Math.floor((s % 3600) / 60);
-      var sec = s % 60;
-      var pad = function (n) { return String(n).padStart(2, '0'); };
-      el.textContent = pad(h) + ':' + pad(m) + ':' + pad(sec);
-    }
-    tick();
-    setInterval(tick, 1000);
-  })();
 
-  /* guest-nav anchors (#panel-desk/rule/friends) activate the matching tab */
-  (function () {
-    var tabs = document.querySelectorAll('.tab[data-tab]');
-    if (!tabs.length) return;
-    function applyHash() {
-      var target = (location.hash || '').slice(1);
-      if (target.indexOf('panel-') !== 0) return;
-      var tab = document.querySelector('.tab[data-tab="' + target.slice(6) + '"]');
-      if (tab) tab.click();
-    }
-    applyHash();
-    window.addEventListener('hashchange', applyHash);
-  })();
-</script>
-{% endblock %}

@@ -63,7 +63,7 @@ def _plain_error_page(request, status, headline, message, requested_path=None):
 <body style="margin:0;min-height:100vh;background:#0E1218;color:#E9EDF3;font-family:Inter,-apple-system,'Segoe UI',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;">
     <div style="text-align:center;max-width:560px;padding:48px 22px;display:flex;flex-direction:column;align-items:center;">
         <div style="width:92px;height:92px;border-radius:50%;background:radial-gradient(circle at 50% 42%,#202A39,#161C26 60%,#0E1218 130%);border:1px solid #34405A;display:grid;place-items:center;color:{amber};box-shadow:0 0 46px {glow};margin-bottom:22px;font-family:'JetBrains Mono',monospace;font-size:1.6rem;font-weight:700;">{status}</div>
-        <p style="margin:0 0 10px;font-size:0.72rem;letter-spacing:0.16em;text-transform:uppercase;color:#647084;font-family:'Space Grotesk',sans-serif;font-weight:600;">yalla zaker — the night desk</p>
+        <p style="margin:0 0 10px;font-size:0.72rem;letter-spacing:0.16em;text-transform:uppercase;color:#647084;font-family:'Space Grotesk',sans-serif;font-weight:600;">yalla zaker</p>
         <h1 style="margin:0 0 10px;font-family:'Space Grotesk',sans-serif;font-size:clamp(1.6rem,4vw,2.2rem);letter-spacing:-0.02em;">{escape(headline)}</h1>
         <p style="margin:0;color:#93A0B2;line-height:1.6;">{escape(message)}</p>
         <code style="margin-top:22px;font-size:0.82rem;color:#93A0B2;background:#1B2330;border:1px solid #273040;border-radius:999px;padding:7px 15px;font-family:'JetBrains Mono',monospace;">{escape(requested_path)}</code>
@@ -127,7 +127,7 @@ def render_diagnostic(request, tb=None, status=500):
     #0E1218;color:#E9EDF3;font-family:Inter,-apple-system,'Segoe UI',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;">
     <div style="text-align:center;max-width:600px;padding:48px 22px;display:flex;flex-direction:column;align-items:center;">
         <div style="width:92px;height:92px;border-radius:50%;background:radial-gradient(circle at 50% 42%,#202A39,#161C26 60%,#0E1218 130%);border:1px solid #34405A;display:grid;place-items:center;color:#E2574C;box-shadow:0 0 46px rgba(226,87,76,0.28);margin-bottom:22px;font-family:'JetBrains Mono',monospace;font-size:1.6rem;font-weight:700;animation:flash 1.6s ease-in-out infinite;">500</div>
-        <p style="margin:0 0 10px;font-size:0.72rem;letter-spacing:0.16em;text-transform:uppercase;color:#647084;font-family:'Space Grotesk',sans-serif;font-weight:600;">yalla zaker — the night desk</p>
+        <p style="margin:0 0 10px;font-size:0.72rem;letter-spacing:0.16em;text-transform:uppercase;color:#647084;font-family:'Space Grotesk',sans-serif;font-weight:600;">yalla zaker</p>
         <h1 style="margin:0 0 10px;font-family:'Space Grotesk',sans-serif;font-size:clamp(1.6rem,4vw,2.2rem);letter-spacing:-0.02em;">The lamp flickered.</h1>
         <p style="margin:0;color:#93A0B2;line-height:1.6;max-width:440px;">Something on our side glitched while loading this page. Try again in a moment — we've logged the fault.</p>
         <details style="margin-top:34px;width:100%;text-align:left;background:#161C26;border:1px solid #273040;border-radius:9px;overflow:hidden;">
