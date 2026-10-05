@@ -1,0 +1,52 @@
+{% extends 'controlpanel/base.html' %}
+{% block panel_title %}Confirm delete · Control panel{% endblock %}
+{% block panel_body %}
+
+<header class="cp-head cp-head--compact">
+  <div>
+    <div class="eyebrow">destructive action</div>
+    <h1>{% if bulk %}Delete {{ count_label }}?{% else %}Delete “{{ label }}”?{% endif %}</h1>
+    <p class="cp-head-sub">There is no undo and no archive. Check the list below, then confirm.</p>
+  </div>
+</header>
+
+<div class="cp-danger-card">
+  {% if cascade %}
+  <div class="cp-danger-head">
+    <span class="cp-danger-dot" aria-hidden="true"></span>
+    <strong>This cascades.</strong>
+  </div>
+  <ul class="cp-danger-list">
+    {% for item in cascade %}
+    <li><span class="cp-danger-num mono">{{ item.count }}</span> {{ item.label }} will be deleted with it.</li>
+    {% endfor %}
+  </ul>
+  {% if spec.danger %}<p class="cp-danger-note">{{ spec.danger }}</p>{% endif %}
+  {% else %}
+  <p class="cp-danger-note">{{ spec.danger|default:'Nothing else depends on this record.' }}</p>
+  {% endif %}
+</div>
+
+{% if bulk %}
+<ul class="cp-preview">
+  {% for item in objects %}
+  <li><span class="mono cp-preview-id">#{{ item.pk }}</span> {{ item }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<form method="post" class="cp-confirm">
+  {% csrf_token %}
+  {% if bulk %}
+    {% for item in objects %}<input type="hidden" name="pks" value="{{ item.pk }}">{% endfor %}
+    <input type="hidden" name="confirmed" value="1">
+  {% endif %}
+  <div class="form-actions">
+    <button class="btn btn-danger" type="submit">
+      {% if bulk %}Yes, delete {{ count_label }}{% else %}Yes, delete it{% endif %}
+    </button>
+    <a class="btn btn-ghost" href="{% url 'controlpanel:records' spec.key %}">Keep everything</a>
+  </div>
+</form>
+
+{% endblock %}

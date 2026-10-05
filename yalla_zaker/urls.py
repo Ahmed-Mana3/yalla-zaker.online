@@ -5,6 +5,7 @@ from . import middleware, seo
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('exclusive-admin/', include('controlpanel.urls')),
     path('robots.txt', seo.robots_txt, name='robots'),
     path('sitemap.xml', seo.sitemap_xml, name='sitemap'),
     path('llms.txt', seo.llms_txt, name='llms'),

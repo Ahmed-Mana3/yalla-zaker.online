@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Panel locked · yalla zaker{% endblock %}
+{% block meta_description %}Passphrase required.{% endblock %}
+
+{% block robots %}noindex, nofollow, noarchive{% endblock %}
+
+{% block head %}
+<meta name="googlebot" content="noindex, nofollow">
+{% endblock %}
+
+{% block mainclass %}page{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="cp-lock">
+    <span class="cp-lock-mark" aria-hidden="true"></span>
+    <div class="eyebrow">exclusive admin</div>
+    <h1>Panel locked</h1>
+    <p class="cp-lock-sub">This control panel needs the passphrase before it opens.</p>
+
+    {% if error %}<div class="field-errors cp-lock-error">{{ error }}</div>{% endif %}
+
+    <form method="post" class="cp-lock-form">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <div class="field">
+        <label for="cp-key">Passphrase</label>
+        <input type="password" name="key" id="cp-key" autocomplete="off" autofocus>
+      </div>
+      <button class="btn btn-primary" type="submit">Open the panel</button>
+    </form>
+
+    <a class="cp-lock-back" href="{% url 'home' %}">Back to the site</a>
+  </div>
+</div>
+{% endblock %}

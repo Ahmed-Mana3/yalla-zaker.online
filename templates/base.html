@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#007DCC">
   <title>{% block title %}yalla zaker{% endblock %}</title>
   <meta name="description" content="{% block meta_description %}yalla zaker turns your courses into a clock, your friends into witnesses, and your study sessions into something you don't want to lose.{% endblock %}">
-  <meta name="robots" content="index, follow">
+  <meta name="robots" content="{% block robots %}index, follow{% endblock %}">
   <link rel="canonical" href="{{ canonical_site }}{{ canonical_path }}">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23B2054C'/%3E%3Ccircle cx='8' cy='8' r='4' fill='none' stroke='%23007DCC' stroke-width='1.6'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%23FFB900'/%3E%3C/svg%3E">
   <link rel="manifest" href="{% url 'manifest' %}">

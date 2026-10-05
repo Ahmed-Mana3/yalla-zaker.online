@@ -1,0 +1,70 @@
+{% extends 'controlpanel/base.html' %}
+{% block panel_title %}Overview{% endblock %}
+{% block panel_body %}
+
+<header class="cp-head">
+  <div>
+    <div class="eyebrow">exclusive admin</div>
+    <h1>Control panel</h1>
+    <p class="cp-head-sub">
+      Every record on yalla zaker, in one place. Add anything, edit anything, remove anything —
+      no account required, just this URL.
+    </p>
+  </div>
+  <div class="cp-head-actions">
+    <a class="btn btn-primary" href="{% url 'controlpanel:record_add' 'user' %}">New user</a>
+    <a class="btn btn-accent" href="{% url 'controlpanel:record_add' 'challenge' %}">New challenge</a>
+  </div>
+</header>
+
+<div class="cp-banner" role="note">
+  <strong>Open panel.</strong>
+  Writes here are immediate and permanent, and deletes cascade through related
+  records. Every table has a confirmation step before anything is removed.
+</div>
+
+<div class="cp-metrics">
+  <div class="cp-metric">
+    <span class="cp-metric-num mono">{{ total_records }}</span>
+    <span class="cp-metric-lab">records on the panel</span>
+  </div>
+  <div class="cp-metric">
+    <span class="cp-metric-num mono">{{ by_key.user }}</span>
+    <span class="cp-metric-lab">accounts</span>
+  </div>
+  <div class="cp-metric">
+    <span class="cp-metric-num mono">{{ by_key.course }}</span>
+    <span class="cp-metric-lab">courses</span>
+  </div>
+  <div class="cp-metric">
+    <span class="cp-metric-num mono">{{ by_key.studysession }}</span>
+    <span class="cp-metric-lab">study sessions</span>
+  </div>
+</div>
+
+{% for group in cp_nav %}
+<section class="cp-group">
+  <div class="cp-group-head">
+    <h2>{{ group.name }}</h2>
+    <p>{{ group.blurb }}</p>
+  </div>
+
+  <div class="cp-tiles">
+    {% for entry in group.specs %}
+    <div class="cp-tile">
+      <a class="cp-tile-link" href="{% url 'controlpanel:records' entry.spec.key %}">
+        <span class="cp-tile-title">{{ entry.spec.title }}</span>
+        <span class="cp-tile-count mono">{{ entry.count }}</span>
+        <span class="cp-tile-blurb">{{ entry.spec.blurb }}</span>
+      </a>
+      <div class="cp-tile-actions">
+        <a class="btn btn-sm btn-ghost" href="{% url 'controlpanel:records' entry.spec.key %}">Browse</a>
+        <a class="btn btn-sm btn-primary" href="{% url 'controlpanel:record_add' entry.spec.key %}">Add</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+{% endblock %}

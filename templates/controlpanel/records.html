@@ -1,0 +1,137 @@
+{% extends 'controlpanel/base.html' %}
+{% block panel_title %}{{ spec.title }} · Control panel{% endblock %}
+{% block panel_body %}
+
+<header class="cp-head cp-head--compact">
+  <div>
+    <div class="eyebrow">{{ spec.group }}</div>
+    <h1>{{ spec.title }}</h1>
+    <p class="cp-head-sub">
+      {{ spec.blurb }}
+      {% if spec.danger %}<span class="cp-danger-note">{{ spec.danger }}</span>{% endif %}
+    </p>
+  </div>
+  <div class="cp-head-actions">
+    <a class="btn btn-primary" href="{% url 'controlpanel:record_add' spec.key %}">Add {{ spec.singular_lower }}</a>
+  </div>
+</header>
+
+<form class="cp-search" method="get" role="search">
+  <input type="search" name="q" value="{{ term }}" placeholder="Search {{ spec.title|lower }}…"
+         aria-label="Search {{ spec.title }}">
+  <button class="btn btn-md btn-ghost" type="submit">Search</button>
+  {% if term %}<a class="btn btn-md btn-ghost" href="{% url 'controlpanel:records' spec.key %}">Clear</a>{% endif %}
+  <span class="cp-search-count mono">
+    {{ total }} record{{ total|pluralize }}{% if is_filtered %} matching{% endif %}
+  </span>
+</form>
+
+{% if rows %}
+<form method="post" action="{% url 'controlpanel:bulk_delete' spec.key %}" id="cp-bulk-form">
+  {% csrf_token %}
+  <div class="cp-table-wrap">
+    <table class="cp-table">
+      <thead>
+        <tr>
+          <th class="cp-th-check"><input type="checkbox" id="cp-select-all" aria-label="Select every row on this page"></th>
+          <th class="cp-th-id">#</th>
+          {% for cell in rows.0.cells %}
+          <th>{{ cell.label }}</th>
+          {% endfor %}
+          <th class="cp-th-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="cp-td-check">
+            <input type="checkbox" name="pks" value="{{ row.pk }}" class="cp-row-check" aria-label="Select {{ row.label }}">
+          </td>
+          <td class="cp-td-id mono">{{ row.pk }}</td>
+          {% for cell in row.cells %}
+          <td class="cp-td">
+            {% if cell.kind == 'bool' %}
+              {% if cell.on %}<span class="cp-flag is-on">yes</span>{% else %}<span class="cp-flag">no</span>{% endif %}
+            {% elif cell.kind == 'url' %}
+              {% if cell.on %}<a class="cp-link-out mono" href="{{ cell.value }}" target="_blank" rel="noopener noreferrer">{{ cell.value|truncatechars:34 }}</a>
+              {% else %}<span class="cp-none">—</span>{% endif %}
+            {% elif cell.kind == 'num' %}
+              <span class="mono">{{ cell.value }}</span>
+            {% else %}
+              {{ cell.value }}
+            {% endif %}
+          </td>
+          {% endfor %}
+          <td class="cp-td-actions">
+            <div class="cp-row-actions">
+              <a class="btn btn-xs btn-ghost" href="{% url 'controlpanel:record_edit' spec.key row.pk %}">Edit</a>
+              <a class="btn btn-xs btn-danger-ghost" href="{% url 'controlpanel:record_delete' spec.key row.pk %}">Delete</a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="cp-bulkbar">
+    <span class="cp-bulkbar-text" data-cp-bulk-text>No rows selected</span>
+    <button class="btn btn-sm btn-danger" type="submit" data-cp-bulk-submit disabled>Delete selected</button>
+  </div>
+</form>
+{% else %}
+<div class="empty">
+  <strong>{% if is_filtered %}No records match “{{ term }}”.{% else %}Nothing here yet.{% endif %}</strong>
+  <p>{% if is_filtered %}Try a shorter term, or clear the search to see everything.{% else %}Add the first one and it will show up across the site immediately.{% endif %}</p>
+  {% if is_filtered %}
+    <a class="btn btn-ghost" href="{% url 'controlpanel:records' spec.key %}">Clear search</a>
+  {% else %}
+    <a class="btn btn-primary" href="{% url 'controlpanel:record_add' spec.key %}">Add {{ spec.singular_lower }}</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if paginator.num_pages > 1 %}
+<nav class="cp-pager" aria-label="Pagination">
+  {% if page.has_previous %}
+    <a class="btn btn-sm btn-ghost" href="?{% if term %}q={{ term|urlencode }}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>
+  {% else %}
+    <span class="btn btn-sm btn-ghost is-disabled">Previous</span>
+  {% endif %}
+  <span class="cp-pager-pos mono">Page {{ page.number }} of {{ paginator.num_pages }}</span>
+  {% if page.has_next %}
+    <a class="btn btn-sm btn-ghost" href="?{% if term %}q={{ term|urlencode }}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>
+  {% else %}
+    <span class="btn btn-sm btn-ghost is-disabled">Next</span>
+  {% endif %}
+</nav>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var form = document.getElementById('cp-bulk-form');
+  if (!form) return;
+  var all = document.getElementById('cp-select-all');
+  var boxes = Array.prototype.slice.call(form.querySelectorAll('.cp-row-check'));
+  var text = document.querySelector('[data-cp-bulk-text]');
+  var submit = document.querySelector('[data-cp-bulk-submit]');
+
+  function sync() {
+    var n = boxes.filter(function (b) { return b.checked; }).length;
+    if (text) text.textContent = n === 0 ? 'No rows selected' : n + ' row' + (n === 1 ? '' : 's') + ' selected';
+    if (submit) submit.disabled = n === 0;
+    if (all) all.checked = n > 0 && n === boxes.length;
+  }
+
+  if (all) all.addEventListener('change', function () {
+    boxes.forEach(function (b) { b.checked = all.checked; });
+    sync();
+  });
+  boxes.forEach(function (b) { b.addEventListener('change', sync); });
+  sync();
+})();
+</script>
+{% endblock %}

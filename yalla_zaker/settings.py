@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "courses",
     "studysessions",
     "challenges",
+    "controlpanel",
 ]
 
 MIDDLEWARE = [
@@ -84,6 +85,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "yalla_zaker.context_processors.seo",
+                "controlpanel.context_processors.panel",
             ],
         },
     },
@@ -174,6 +176,11 @@ ONLINE_THROTTLE_SECONDS = 60
 # SEO: pin the production domain here so sitemap/robots/canonical use it.
 # Left empty, the request's own host is used (works in dev and on any host).
 SEO_CANONICAL_HOST = os.environ.get("SEO_CANONICAL_HOST", "")
+
+# Exclusive control panel at /exclusive-admin/. It is open to anyone who has the
+# URL. Set EXCLUSIVE_ADMIN_KEY to a passphrase to put a single shared key in
+# front of it; leave it empty (the default) for a fully public panel.
+EXCLUSIVE_ADMIN_KEY = os.environ.get("EXCLUSIVE_ADMIN_KEY", "").strip()
 
 # Production security settings (only when DEBUG is off)
 if not DEBUG:

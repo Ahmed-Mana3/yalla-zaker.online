@@ -3,6 +3,8 @@ Allow: /
 
 # Login-required areas have nothing to crawl.
 Disallow: /admin/
+Disallow: /exclusive-admin/
+Disallow: /unlock/
 Disallow: /logout/
 Disallow: /friends/
 Disallow: /profile/

@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% comment %}
+Shell for every control panel page: dark sidebar rail with one link per record
+type, plus the content slot. Kept separate from the site shell so the panel can
+grow its own layout without touching base.html.
+{% endcomment %}
+
+{% block title %}{% block panel_title %}Control panel{% endblock %} · yalla zaker{% endblock %}
+{% block meta_description %}Internal record management for yalla zaker.{% endblock %}
+
+{% block robots %}noindex, nofollow, noarchive{% endblock %}
+
+{% block head %}
+<meta name="googlebot" content="noindex, nofollow">
+{% block panel_head %}{% endblock %}
+{% endblock %}
+
+{% block body_class %}cp-body{% endblock %}
+{% block mainclass %}cp-main{% endblock %}
+
+{% block body %}
+<div class="cp-shell">
+
+  <aside class="cp-rail" aria-label="Control panel sections">
+    <div class="cp-rail-head">
+      <a class="cp-rail-brand" href="{% url 'controlpanel:dashboard' %}">
+        <span class="cp-rail-mark" aria-hidden="true"></span>
+        <span class="cp-rail-name">control panel</span>
+      </a>
+      <p class="cp-rail-url mono">/exclusive-admin/</p>
+    </div>
+
+    <nav class="cp-rail-nav">
+      <a class="cp-rail-link{% if request.resolver_match.url_name == 'dashboard' %} is-active{% endif %}"
+         href="{% url 'controlpanel:dashboard' %}">
+        <span class="cp-rail-label">Overview</span>
+      </a>
+
+      {% for group in cp_nav %}
+      <div class="cp-rail-group">
+        <div class="cp-rail-group-name">{{ group.name }}</div>
+        {% for entry in group.specs %}
+        <a class="cp-rail-link cp-rail-link--sub{% if request.resolver_match.kwargs.model_key == entry.spec.key %} is-active{% endif %}"
+           href="{% url 'controlpanel:records' entry.spec.key %}">
+          <span class="cp-rail-label">{{ entry.spec.title }}</span>
+          <span class="cp-rail-count mono">{{ entry.count }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </nav>
+
+    <div class="cp-rail-foot">
+      <a class="btn btn-ghost btn-sm" href="{% url 'home' %}">Back to site</a>
+      {% if cp_locked %}
+      <form action="{% url 'controlpanel:lock' %}" method="post" class="cp-rail-lock">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-ghost btn-sm">Lock panel</button>
+      </form>
+      {% endif %}
+    </div>
+  </aside>
+
+  <section class="cp-content">
+    {% block panel_body %}{% endblock %}
+  </section>
+
+</div>
+{% endblock %}
