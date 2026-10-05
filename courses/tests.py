@@ -336,7 +336,7 @@ class RoadmapProgressTests(TestCase):
         self.link_course(title='Operating Systems', total_hours=20.0, hours_done=10.0)
         response = self.client.get(reverse('dashboard'))
         self.assertContains(response, 'Systems Path')
-        self.assertContains(response, '0/2 courses done')
+        self.assertContains(response, '0/2 courses done · 10h')
         self.assertContains(response, '25%')
 
     def test_roadmap_list_shows_progress(self):

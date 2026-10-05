@@ -3601,19 +3601,6 @@ body.is-focus-end .checkin-card {
   padding: 8px 14px;
 }
 
-/* Roadmaps on the desk — same card shape, path-coloured rail */
-.d3-roadmaps { margin-top: 26px; }
-
-.d3-course-card.is-roadmap::before { background: var(--color-rose); }
-.d3-course-card.is-roadmap:hover { border-color: rgba(178, 5, 76, 0.3); }
-.d3-course-card.is-roadmap:hover::before { background: var(--color-rose); opacity: 1; width: 4.5px; }
-.d3-course-card.is-roadmap .d3-progress-row .bar i {
-  background: linear-gradient(90deg, var(--color-rose) 0%, #E24C9B 100%);
-}
-.d3-course-card.is-roadmap .d3-progress-nums strong { color: var(--color-rose); }
-
-.d3-empty-slim { padding: 24px 20px; }
-
 /* Empty State */
 .d3-empty-state {
   background: var(--panel);

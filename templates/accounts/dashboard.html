@@ -144,56 +144,6 @@
         <a class="btn btn-primary btn-sm" href="{% url 'course_create' %}">+ Add your first course</a>
       </div>
       {% endif %}
-      <!-- 4. ROADMAPS: whole paths with the progress of every course inside them -->
-      <section class="d3-roadmaps" aria-labelledby="desk-roadmaps-title">
-        <div class="d3-section-bar">
-          <div class="d3-section-title-wrap">
-            <h2 id="desk-roadmaps-title">Roadmaps</h2>
-            {% if roadmap_cards %}
-              <span class="d3-count-pill">{{ roadmap_cards|length }}</span>
-            {% endif %}
-          </div>
-          <a class="d3-add-course-btn" href="{% url 'roadmap_create' %}">+ New roadmap</a>
-        </div>
-        {% if roadmap_cards %}
-        <div class="d3-course-grid">
-          {% for card in roadmap_cards %}
-          <article class="d3-course-card is-roadmap{% if card.progress >= 100 %} is-done{% endif %}">
-            <div class="d3-course-main">
-              <div class="d3-course-top">
-                <a class="d3-course-title" href="{% url 'roadmap_detail' slug=card.roadmap.slug %}" title="{{ card.roadmap.title }}">{{ card.roadmap.title }}</a>
-                <div class="d3-course-tags">
-                  {% if card.progress >= 100 %}
-                    <span class="tag tag-done">Walked</span>
-                  {% else %}
-                    <span class="tag">{{ card.progress }}%</span>
-                  {% endif %}
-                </div>
-              </div>
-              <div class="d3-progress-row">
-                <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ card.progress }}" aria-label="{{ card.roadmap.title }} progress">
-                  <i style="width: {{ card.progress }}%"></i>
-                </div>
-                <div class="d3-progress-nums mono">
-                  <span>{{ card.done_count }}/{{ card.step_count }} courses done</span>
-                  <strong>{{ card.progress }}%</strong>
-                </div>
-              </div>
-            </div>
-            <div class="d3-course-action">
-              <a class="btn btn-ghost btn-sm" href="{% url 'roadmap_detail' slug=card.roadmap.slug %}">Open</a>
-            </div>
-          </article>
-          {% endfor %}
-        </div>
-        {% else %}
-        <div class="d3-empty-state d3-empty-slim">
-          <h3>No roadmaps yet</h3>
-          <p>A roadmap groups the courses you’re studying into one path — the desk shows how far you’ve walked it.</p>
-          <a class="btn btn-primary btn-sm" href="{% url 'roadmap_create' %}">+ Create your first roadmap</a>
-        </div>
-        {% endif %}
-      </section>
     </main>
     <!-- Right Column: Sidebar (Social, Challenges, Roadmaps) -->
     <aside class="d3-aside-col">
@@ -274,14 +224,14 @@
           </div>
           <a class="d3-panel-link" href="{% url 'roadmaps' %}">All</a>
         </div>
-        {% for card in roadmap_cards|slice:":2" %}
+        {% for card in roadmap_cards|slice:":3" %}
           <a class="d3-side-card" href="{% url 'roadmap_detail' slug=card.roadmap.slug %}">
             <div class="d3-side-card-top">
               <span class="d3-side-card-title">{{ card.roadmap.title }}</span>
               <span class="d3-side-chip">{{ card.progress }}%</span>
             </div>
             <div class="bar bar-xs d3-side-bar"><i style="width: {{ card.progress }}%"></i></div>
-            <span class="d3-side-card-meta mono">{{ card.done_count }}/{{ card.step_count }} courses · {{ card.hours_spent|hours }}</span>
+            <span class="d3-side-card-meta mono">{{ card.done_count }}/{{ card.step_count }} courses done · {{ card.hours_spent|hours }}</span>
           </a>
         {% empty %}
           <div class="d3-side-empty">

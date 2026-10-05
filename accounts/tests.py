@@ -100,10 +100,9 @@ class OnlineStatusTests(TestCase):
         response = self.client.get('/dashboard/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Fullstack Track')
-        self.assertContains(response, '0/1 courses done')
-        self.assertContains(response, '0/1 courses · 0h')
+        self.assertContains(response, '0/1 courses done · 0h')
 
-    def test_dashboard_roadmap_card_counts_finished_courses(self):
+    def test_dashboard_roadmap_sidebar_counts_finished_courses(self):
         rm = Roadmap.objects.create(owner=self.alice, title='Fullstack Track')
         RoadmapCourse.objects.create(roadmap=rm, position=0, course_title_override='Shipped', progress_percent=100)
         RoadmapCourse.objects.create(roadmap=rm, position=1, course_title_override='Todo')
@@ -111,6 +110,14 @@ class OnlineStatusTests(TestCase):
         response = self.client.get('/dashboard/')
         self.assertContains(response, '1/2 courses done')
         self.assertContains(response, '50%')
+
+    def test_dashboard_has_no_roadmap_section_under_courses(self):
+        Roadmap.objects.create(owner=self.alice, title='Fullstack Track')
+        self.client.force_login(self.alice)
+        response = self.client.get('/dashboard/')
+        self.assertNotContains(response, 'desk-roadmaps-title')
+        self.assertNotContains(response, 'class="d3-roadmaps"')
+        self.assertContains(response, 'side-roadmaps-title')
 
     def test_dashboard_active_session_renders_focus_banner(self):
         course = Course.objects.create(owner=self.alice, title='Linear Algebra', total_hours=40)
