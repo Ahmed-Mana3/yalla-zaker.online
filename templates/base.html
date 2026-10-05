@@ -57,7 +57,7 @@
       <nav class="mainnav" aria-label="Main">
         <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">Desk</a>
         <a href="{% url 'courses' %}" class="{% if request.resolver_match.url_name == 'courses' or request.resolver_match.url_name|slice:':7' == 'course_' %}is-active{% endif %}">Courses</a>
-        {# <a href="{% url 'roadmaps' %}" class="{% if request.resolver_match.url_name == 'roadmaps' or request.resolver_match.url_name|slice:':8' == 'roadmap_' %}is-active{% endif %}">Roadmaps</a> #}
+        <a href="{% url 'roadmaps' %}" class="{% if request.resolver_match.url_name == 'roadmaps' or request.resolver_match.url_name|slice:':8' == 'roadmap_' %}is-active{% endif %}">Roadmaps</a>
         <a href="{% url 'study' %}" class="{% if request.resolver_match.namespace == 'study' or request.resolver_match.url_name == 'study' %}is-active{% endif %}">Study</a>
         <a href="{% url 'friends' %}" class="{% if request.resolver_match.url_name == 'friends' %}is-active{% endif %}">Friends</a>
         <a href="{% url 'challenges' %}" class="{% if request.resolver_match.url_name == 'challenges' or request.resolver_match.url_name|slice:':10' == 'challenge_' %}is-active{% endif %}">Challenges</a>
@@ -76,7 +76,7 @@
     <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation">
       <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">Desk</a>
       <a href="{% url 'courses' %}" class="{% if request.resolver_match.url_name == 'courses' or request.resolver_match.url_name|slice:':7' == 'course_' %}is-active{% endif %}">Courses</a>
-      {# <a href="{% url 'roadmaps' %}" class="{% if request.resolver_match.url_name == 'roadmaps' or request.resolver_match.url_name|slice:':8' == 'roadmap_' %}is-active{% endif %}">Roadmaps</a> #}
+      <a href="{% url 'roadmaps' %}" class="{% if request.resolver_match.url_name == 'roadmaps' or request.resolver_match.url_name|slice:':8' == 'roadmap_' %}is-active{% endif %}">Roadmaps</a>
       <a href="{% url 'study' %}" class="{% if request.resolver_match.namespace == 'study' or request.resolver_match.url_name == 'study' %}is-active{% endif %}">Study</a>
       <a href="{% url 'friends' %}" class="{% if request.resolver_match.url_name == 'friends' %}is-active{% endif %}">Friends</a>
       <a href="{% url 'challenges' %}" class="{% if request.resolver_match.url_name == 'challenges' or request.resolver_match.url_name|slice:':10' == 'challenge_' %}is-active{% endif %}">Challenges</a>

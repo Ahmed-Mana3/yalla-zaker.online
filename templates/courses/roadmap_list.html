@@ -3,41 +3,58 @@
 {% block title %}Roadmaps · yalla zaker{% endblock %}
 {% block body %}
 <div class="wrap page">
-  <div class="panel-title" style="margin-bottom:20px">
-    <h1>Roadmaps</h1>
-    <a class="btn btn-primary btn-sm" href="{% url 'roadmap_create' %}">New roadmap</a>
+  <div class="rm-page-head">
+    <div>
+      <h1>Roadmaps</h1>
+      <p class="section-meta rm-page-head-sub">Group the courses you're studying into a path that leads to one goal.</p>
+    </div>
+    <a class="btn btn-primary btn-sm" href="{% url 'roadmap_create' %}">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New roadmap
+    </a>
   </div>
 
-  <p class="section-meta" style="margin-top:-8px; margin-bottom:22px">
-    Group the courses you're studying into a path that leads to one goal.
-  </p>
-
   {% if roadmaps %}
-  <div class="grid grid-col">
+  <div class="grid rm-grid">
     {% for item in roadmaps %}
     <a class="panel roadmap-card" href="{% url 'roadmap_detail' slug=item.roadmap.slug %}">
-      <div class="rm-card-top">
-        <h3 style="margin:0">{{ item.roadmap.title }}</h3>
-        {% if item.roadmap.is_public %}<span class="tag">public</span>{% endif %}
+      <div class="rm-card-body">
+        <div class="rm-card-top">
+          <h3 class="rm-card-title">{{ item.roadmap.title }}</h3>
+          {% if item.roadmap.is_public %}<span class="tag tag-ok">public</span>{% endif %}
+        </div>
+        {% if item.roadmap.description %}
+        <p class="section-meta rm-card-desc">{{ item.roadmap.description|truncatechars:100 }}</p>
+        {% endif %}
+        <div class="rm-card-stats">
+          <span class="mono">{{ item.done_count }}/{{ item.step_count }} course{{ item.step_count|pluralize }}</span>
+          {% if item.hours_spent %}<span class="mono">{{ item.hours_spent|hours }} of {{ item.total_hours|hours }}</span>{% endif %}
+        </div>
       </div>
-      {% if item.roadmap.description %}
-      <p class="section-meta rm-card-desc">{{ item.roadmap.description|truncatechars:110 }}</p>
-      {% endif %}
-      <div class="rm-card-meta">
-        <span class="mono">{{ item.step_count }} course{{ item.step_count|pluralize }}</span>
-        {% if item.total_hours %}<span class="mono">{{ item.total_hours|hours }} planned</span>{% endif %}
-      </div>
-      <div class="rm-card-foot">
-        <span class="section-meta">View roadmap</span>
-        <span class="mono">&rarr;</span>
+      <div class="rm-card-progress-area">
+        <svg class="rm-card-ring" viewBox="0 0 44 44" aria-hidden="true">
+          <circle cx="22" cy="22" r="18" fill="none" stroke="var(--panel-3)" stroke-width="4"/>
+          <circle cx="22" cy="22" r="18" fill="none" stroke="var(--color-blue)" stroke-width="4"
+                  stroke-linecap="round" transform="rotate(-90 22 22)"
+                  style="stroke-dashoffset: calc(113.1 * (1 - {{ item.progress }} / 100)); transition: stroke-dashoffset 0.6s ease"/>
+        </svg>
+        <span class="rm-card-pct mono">{{ item.progress }}%</span>
       </div>
     </a>
     {% endfor %}
   </div>
   {% else %}
-  <div class="empty">
+  <div class="rm-empty-hero">
+    <div class="rm-empty-icon-large">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        <line x1="12" y1="8" x2="12" y2="14"/>
+        <line x1="9" y1="11" x2="15" y2="11"/>
+      </svg>
+    </div>
     <strong>No roadmaps yet.</strong>
-    <p>A roadmap is a group of courses that together lead to one goal.</p>
+    <p>A roadmap groups courses together toward one goal — create one to start mapping out your learning path.</p>
     <a class="btn btn-primary" href="{% url 'roadmap_create' %}">Create your first roadmap</a>
   </div>
   {% endif %}

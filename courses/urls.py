@@ -17,6 +17,8 @@ urlpatterns = [
     path('roadmaps/<slug:slug>/reorder/', views.roadmap_reorder, name='roadmap_reorder'),
     path('roadmaps/<slug:slug>/step/<int:step_id>/remove/', views.roadmap_remove_step, name='roadmap_remove_step'),
     path('roadmaps/<slug:slug>/step/<int:step_id>/label/', views.roadmap_edit_step, name='roadmap_edit_step'),
+    path('roadmaps/<slug:slug>/step/<int:step_id>/fork/', views.roadmap_fork_step, name='roadmap_fork_step'),
+    path('roadmaps/<slug:slug>/step/<int:step_id>/done/', views.roadmap_step_progress, name='roadmap_step_progress'),
     path('roadmaps/<slug:slug>/clone/', views.roadmap_clone, name='roadmap_clone'),
 
     path('<slug:slug>/', views.course_detail, name='course_detail'),

@@ -7,7 +7,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from challenges.models import Challenge, ChallengeMember
-from courses.models import Course, Roadmap
+from courses.models import Course
+from courses.views import prefetched_roadmaps, roadmap_card_list
 from studysessions.models import StudySession
 
 from .forms import ProfileForm, SignUpForm
@@ -110,15 +111,8 @@ def dashboard(request):
         for challenge in active_challenges
     ]
 
-    roadmaps = user.roadmaps.prefetch_related('steps').all()
-    roadmap_cards = [
-        {
-            'roadmap': rm,
-            'step_count': rm.step_count(),
-            'total_hours': rm.total_planned_hours(),
-        }
-        for rm in roadmaps
-    ]
+    roadmap_cards = roadmap_card_list(prefetched_roadmaps(user))
+    roadmap_cards.sort(key=lambda c: (-(c['progress'] or 0), -c['step_count']))
 
     ctx = {
         'courses': courses,

@@ -1,10 +1,36 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Prefetch
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import CourseForm, RoadmapCourseForm, RoadmapForm
 from .models import Course, Roadmap, RoadmapCourse
+
+
+def step_queryset():
+    """Every step with its course in one go — no N+1 when progress is read."""
+    return RoadmapCourse.objects.select_related('course').order_by('position', 'id')
+
+
+def roadmap_card_list(roadmaps):
+    """Roadmaps plus the numbers the desk, list and detail pages all show."""
+    cards = []
+    for rm in roadmaps:
+        cards.append({
+            'roadmap': rm,
+            'step_count': rm.step_count(),
+            'total_hours': rm.total_planned_hours(),
+            'hours_spent': rm.hours_spent(),
+            'done_count': rm.completed_count(),
+            'tracked_count': rm.tracked_count(),
+            'progress': rm.progress(),
+        })
+    return cards
+
+
+def prefetched_roadmaps(user):
+    return user.roadmaps.prefetch_related(Prefetch('steps', queryset=step_queryset()))
 
 
 @login_required
@@ -32,6 +58,7 @@ def course_create(request):
     if request.method == 'POST' and form.is_valid():
         course = form.save(commit=False)
         course.owner = request.user
+        course.forked_from = source if source and source.owner != request.user else None
         course.save()
         messages.success(request, f'{course.title} added to your desk.')
         return redirect('course_detail', slug=course.slug)
@@ -51,7 +78,12 @@ def course_detail(request, slug):
             return redirect('public:course_public', slug=course.slug)
         return render(request, 'courses/access.html', {'course': course}, status=404)
     sessions = course.studysession_set.filter(status='finished').order_by('-ended_at')[:10]
-    return render(request, 'courses/detail.html', {'course': course, 'sessions': sessions})
+    roadmaps = request.user.roadmaps.filter(steps__course=course).distinct().prefetch_related('steps__course')
+    return render(request, 'courses/detail.html', {
+        'course': course,
+        'sessions': sessions,
+        'roadmaps': roadmaps,
+    })
 
 
 @login_required
@@ -89,15 +121,7 @@ def course_public(request, slug):
 
 @login_required
 def roadmap_index(request):
-    roadmaps = request.user.roadmaps.prefetch_related('steps').all()
-    cards = [
-        {
-            'roadmap': rm,
-            'step_count': rm.step_count(),
-            'total_hours': rm.total_planned_hours(),
-        }
-        for rm in roadmaps
-    ]
+    cards = roadmap_card_list(prefetched_roadmaps(request.user))
     return render(request, 'courses/roadmap_list.html', {'roadmaps': cards})
 
 
@@ -115,14 +139,22 @@ def roadmap_create(request):
 
 @login_required
 def roadmap_detail(request, slug):
-    roadmap = get_object_or_404(Roadmap, slug=slug, owner=request.user)
-    steps = roadmap.steps.order_by('position', 'id')
-    total_hours = sum(s.planned_hours for s in steps)
-    return render(request, 'courses/roadmap_detail.html', {
+    roadmap = get_object_or_404(prefetched_roadmaps(request.user), slug=slug)
+    return render(request, 'courses/roadmap_detail.html', roadmap_context(roadmap))
+
+
+def roadmap_context(roadmap):
+    """The roadmap page: every course with its own progress and its own actions."""
+    steps = list(roadmap.steps.all())
+    return {
         'roadmap': roadmap,
         'steps': steps,
-        'total_hours': round(total_hours, 1),
-    })
+        'total_hours': round(roadmap.total_planned_hours(), 1),
+        'hours_spent': roadmap.hours_spent(),
+        'progress': roadmap.progress(),
+        'done_count': roadmap.completed_count(),
+        'tracked_count': roadmap.tracked_count(),
+    }
 
 
 @login_required
@@ -148,14 +180,8 @@ def roadmap_delete(request, slug):
 
 @login_required
 def roadmap_steps_edit(request, slug):
-    roadmap = get_object_or_404(Roadmap, slug=slug, owner=request.user)
-    steps = roadmap.steps.order_by('position', 'id')
-    total_hours = sum(s.planned_hours for s in steps)
-    return render(request, 'courses/roadmap_steps.html', {
-        'roadmap': roadmap,
-        'steps': steps,
-        'total_hours': round(total_hours, 1),
-    })
+    roadmap = get_object_or_404(prefetched_roadmaps(request.user), slug=slug)
+    return render(request, 'courses/roadmap_steps.html', roadmap_context(roadmap))
 
 
 @login_required
@@ -279,7 +305,7 @@ def roadmap_reorder(request, slug):
 
 @login_required
 def roadmap_clone(request, slug):
-    source = get_object_or_404(Roadmap, slug=slug)
+    source = get_object_or_404(Roadmap.objects.prefetch_related(Prefetch('steps', queryset=step_queryset())), slug=slug)
     if not (source.is_public or source.owner == request.user):
         return redirect('roadmaps')
     if request.method == 'POST':
@@ -290,27 +316,115 @@ def roadmap_clone(request, slug):
             is_public=False,
             forked_from=source,
         )
-        for step in source.steps.order_by('position', 'id'):
+        for step in source.steps.all():
             RoadmapCourse.objects.create(
                 roadmap=clone,
                 course=None,
                 course_title_override=step.display_title(),
                 planned_hours=step.planned_hours,
-                link=step.link,
+                link=step.link or (step.course.link if step.course else ''),
                 position=step.position,
             )
         messages.success(request, f'{source.title} cloned to your roadmaps.')
         return redirect('roadmap_detail', slug=clone.slug)
-    return render(request, 'courses/roadmap_public.html', {'roadmap': source})
+    return render(request, 'courses/roadmap_public.html', public_roadmap_context(source))
+
+
+def public_roadmap_context(roadmap):
+    steps = list(roadmap.steps.all())
+    return {
+        'roadmap': roadmap,
+        'steps': steps,
+        'total_hours': round(sum(s.planned_hours for s in steps), 1),
+        'progress': roadmap.progress(),
+        'done_count': sum(1 for s in steps if s.is_complete()),
+    }
+
+
+@login_required
+def roadmap_fork_step(request, slug, step_id):
+    """Copy one course out of the roadmap onto the owner's own desk.
+
+    The step stays in the roadmap and now follows the owner's copy, so the roadmap
+    keeps reporting progress while the course tracks hours on its own.
+    """
+    roadmap = get_object_or_404(Roadmap, slug=slug, owner=request.user)
+    step = get_object_or_404(RoadmapCourse, pk=step_id, roadmap=roadmap)
+    source = step.course
+
+    if source and source.owner == request.user:
+        messages.info(request, f'{source.title} is already on your desk.')
+        return redirect('course_detail', slug=source.slug)
+
+    if request.method != 'POST':
+        return redirect('roadmap_detail', slug=roadmap.slug)
+
+    course = Course.objects.create(
+        owner=request.user,
+        title=step.display_title(),
+        link=step.link or (source.link if source else ''),
+        notes=f'Forked from the roadmap "{roadmap.title}".',
+        total_hours=step.planned_hours or (source.total_hours if source else 0),
+        is_public=False,
+        forked_from=source,
+    )
+    step.course = course
+    step.save(update_fields=['course'])
+    messages.success(
+        request,
+        f'{course.title} is yours now — track it on your desk while the roadmap keeps counting it.',
+    )
+    next_url = request.POST.get('next')
+    if next_url:
+        return redirect(next_url)
+    return redirect('course_detail', slug=course.slug)
+
+
+@login_required
+def roadmap_step_progress(request, slug, step_id):
+    """Tick a roadmap-only course as done (or un-done) by hand.
+
+    A course linked to a real one reports its own progress, so nothing to set here.
+    """
+    roadmap = get_object_or_404(Roadmap, slug=slug, owner=request.user)
+    step = get_object_or_404(RoadmapCourse, pk=step_id, roadmap=roadmap)
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json'
+
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST only.'}, status=405)
+
+    if step.is_tracked():
+        payload = {'ok': False, 'error': 'This course tracks its own hours from its course page.'}
+        if is_ajax:
+            return JsonResponse(payload, status=400)
+        messages.info(request, payload['error'])
+        return redirect('roadmap_detail', slug=roadmap.slug)
+
+    raw = (request.POST.get('progress_percent') or '').strip()
+    if raw:
+        try:
+            value = min(100, max(0, int(float(raw))))
+        except (TypeError, ValueError):
+            value = step.progress_percent
+    else:
+        value = 0 if step.is_complete() else 100
+    step.progress_percent = value
+    step.save(update_fields=['progress_percent'])
+
+    if is_ajax:
+        return JsonResponse({'ok': True, 'step_id': step.id, 'progress': step.progress()})
+    messages.success(request, f'{step.display_title()} marked as done.' if value >= 100 else f'{step.display_title()} marked as not done.')
+    next_url = request.POST.get('next')
+    if next_url:
+        return redirect(next_url)
+    return redirect('roadmap_detail', slug=roadmap.slug)
 
 
 def roadmap_public(request, slug):
     """Anyone-with-the-link read-only roadmap."""
-    roadmap = get_object_or_404(Roadmap, slug=slug, is_public=True)
-    steps = roadmap.steps.order_by('position', 'id')
-    total_hours = sum(s.planned_hours for s in steps)
-    return render(request, 'courses/roadmap_public.html', {
-        'roadmap': roadmap,
-        'steps': steps,
-        'total_hours': round(total_hours, 1),
-    })
+    roadmap = get_object_or_404(
+        Roadmap.objects.prefetch_related(Prefetch('steps', queryset=step_queryset())),
+        slug=slug,
+        is_public=True,
+    )
+    return render(request, 'courses/roadmap_public.html', public_roadmap_context(roadmap))

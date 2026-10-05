@@ -3,7 +3,10 @@
 {% block body %}
 <div class="wrap page">
   <div class="panel form-card">
-    <h1>{{ heading }}</h1>
+    <div class="rm-form-head">
+      <h1>{{ heading }}</h1>
+      <p class="section-meta">{% if roadmap %}Update this roadmap's details.{% else %}Create a structured path from courses to a goal.{% endif %}</p>
+    </div>
     <form method="post" class="form-stack">
       {% csrf_token %}
       {% if form.non_field_errors %}<div class="field-errors">{{ form.non_field_errors }}</div>{% endif %}
@@ -17,7 +20,7 @@
       <div class="field">
         <label for="{{ form.description.id_for_label }}">Goal (optional)</label>
         {{ form.description }}
-        <div class="help-text">What does this path lead to? e.g. “Build and ship a web app.”</div>
+        <div class="help-text">What does this path lead to? e.g. "Build and ship a web app."</div>
         {% if form.description.errors %}<div class="field-errors">{{ form.description.errors }}</div>{% endif %}
       </div>
 

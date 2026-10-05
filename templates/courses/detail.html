@@ -74,8 +74,31 @@
             {% if course.is_active_course %}<span class="tag tag-ok">on the desk</span>
             {% else %}<span class="tag tag-danger">completed</span>{% endif %}
           </li>
+          {% if course.forked_from %}
+          <li>Forked from
+            {% if course.forked_from.is_public %}
+              <a href="{% url 'public:course_public' slug=course.forked_from.slug %}">{{ course.forked_from.title }}</a>
+            {% else %}
+              <strong>{{ course.forked_from.title }}</strong>
+            {% endif %}
+          </li>
+          {% endif %}
         </ul>
       </div>
+      {% if roadmaps %}
+      <div class="panel">
+        <div class="panel-title"><h2>Roadmaps</h2></div>
+        <p class="section-meta">This course is a step in your roadmaps — its hours count towards each one.</p>
+        <ul class="subtle-list">
+          {% for rm in roadmaps %}
+          <li style="display:flex; justify-content:space-between; gap:12px">
+            <a href="{% url 'roadmap_detail' slug=rm.slug %}">{{ rm.title }}</a>
+            <span class="mono">{{ rm.progress }}%</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
       {% if course.notes %}
       <div class="panel">
         <div class="panel-title"><h2>Notes</h2></div>

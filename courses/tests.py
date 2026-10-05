@@ -195,6 +195,191 @@ class RoadmapTests(TestCase):
         self.assertFalse(RoadmapCourse.objects.filter(id=step.id).exists())
 
 
+class RoadmapProgressTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='walker', password='password123')
+        self.other = User.objects.create_user(username='stranger', password='password123')
+        self.client = Client()
+        self.client.login(username='walker', password='password123')
+        self.roadmap = Roadmap.objects.create(owner=self.user, title='Systems Path', is_public=True)
+        self.tracked = RoadmapCourse.objects.create(
+            roadmap=self.roadmap, course=None, course_title_override='Operating Systems',
+            planned_hours=20.0, link='https://example.com/ostep', position=0)
+        self.plain = RoadmapCourse.objects.create(
+            roadmap=self.roadmap, course=None, course_title_override='Compilers',
+            planned_hours=10.0, link='https://example.com/compilers', position=1)
+
+    def link_course(self, **kwargs):
+        course = Course.objects.create(owner=self.user, **kwargs)
+        self.tracked.course = course
+        self.tracked.save()
+        return course
+
+    def test_unlinked_steps_report_no_progress(self):
+        self.assertEqual(self.roadmap.progress(), 0)
+        self.assertEqual(self.roadmap.completed_count(), 0)
+        self.assertEqual(self.roadmap.tracked_count(), 0)
+
+    def test_roadmap_progress_follows_linked_course(self):
+        self.link_course(title='Operating Systems', total_hours=20.0, hours_done=10.0)
+        self.assertEqual(self.tracked.progress(), 50)
+        self.assertEqual(self.roadmap.progress(), 25)
+        self.assertEqual(self.roadmap.hours_spent(), 10.0)
+        self.assertEqual(self.roadmap.tracked_count(), 1)
+
+    def test_every_course_counts_once(self):
+        self.link_course(title='Operating Systems', total_hours=20.0, hours_done=20.0)
+        self.plain.progress_percent = 100
+        self.plain.save()
+        self.assertEqual(self.roadmap.completed_count(), 2)
+        self.assertEqual(self.roadmap.progress(), 100)
+
+    def test_mark_step_done_by_hand(self):
+        response = self.client.post(
+            reverse('roadmap_step_progress', kwargs={'slug': self.roadmap.slug, 'step_id': self.plain.id}),
+        )
+        self.assertRedirects(response, reverse('roadmap_detail', kwargs={'slug': self.roadmap.slug}))
+        self.plain.refresh_from_db()
+        self.assertEqual(self.plain.progress_percent, 100)
+        self.assertTrue(self.plain.is_complete())
+
+    def test_unmark_step_done(self):
+        self.plain.progress_percent = 100
+        self.plain.save()
+        self.client.post(reverse('roadmap_step_progress', kwargs={'slug': self.roadmap.slug, 'step_id': self.plain.id}))
+        self.plain.refresh_from_db()
+        self.assertEqual(self.plain.progress_percent, 0)
+
+    def test_mark_done_rejected_for_tracked_step(self):
+        self.link_course(title='Operating Systems', total_hours=20.0)
+        response = self.client.post(
+            reverse('roadmap_step_progress', kwargs={'slug': self.roadmap.slug, 'step_id': self.tracked.id}),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.tracked.refresh_from_db()
+        self.assertEqual(self.tracked.progress_percent, 0)
+
+    def test_step_progress_ajax(self):
+        response = self.client.post(
+            reverse('roadmap_step_progress', kwargs={'slug': self.roadmap.slug, 'step_id': self.plain.id}),
+            {'progress_percent': '40'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['progress'], 40)
+
+    def test_fork_step_creates_own_course_and_keeps_the_step(self):
+        response = self.client.post(
+            reverse('roadmap_fork_step', kwargs={'slug': self.roadmap.slug, 'step_id': self.tracked.id}),
+        )
+        course = Course.objects.get(title='Operating Systems')
+        self.assertRedirects(response, reverse('course_detail', kwargs={'slug': course.slug}))
+        self.assertEqual(course.owner, self.user)
+        self.assertEqual(course.total_hours, 20.0)
+        self.assertEqual(course.link, 'https://example.com/ostep')
+        self.assertEqual(course.hours_done, 0)
+        self.assertFalse(course.is_public)
+        self.tracked.refresh_from_db()
+        self.assertEqual(self.tracked.course, course)
+        self.assertEqual(self.roadmap.steps.count(), 2)
+
+    def test_forked_course_progress_shows_on_the_roadmap(self):
+        self.client.post(reverse('roadmap_fork_step', kwargs={'slug': self.roadmap.slug, 'step_id': self.tracked.id}))
+        course = Course.objects.get(title='Operating Systems')
+        course.hours_done = 20.0
+        course.save()
+        response = self.client.get(reverse('roadmap_detail', kwargs={'slug': self.roadmap.slug}))
+        self.assertEqual(response.context['progress'], 50)
+        self.assertEqual(response.context['done_count'], 1)
+        self.assertEqual(response.context['tracked_count'], 1)
+        self.assertContains(response, '50%')
+
+    def test_fork_step_twice_opens_the_same_course(self):
+        url = reverse('roadmap_fork_step', kwargs={'slug': self.roadmap.slug, 'step_id': self.tracked.id})
+        self.client.post(url)
+        course = Course.objects.get(title='Operating Systems')
+        response = self.client.post(url)
+        self.assertRedirects(response, reverse('course_detail', kwargs={'slug': course.slug}))
+        self.assertEqual(Course.objects.filter(owner=self.user).count(), 1)
+
+    def test_fork_step_records_provenance_of_a_shared_course(self):
+        shared = Course.objects.create(
+            owner=self.other, title='Compilers', total_hours=30.0,
+            link='https://example.com/shared', is_public=True)
+        step = RoadmapCourse.objects.create(
+            roadmap=self.roadmap, course=shared, course_title_override='Compilers',
+            planned_hours=30.0, position=2)
+        self.client.post(reverse('roadmap_fork_step', kwargs={'slug': self.roadmap.slug, 'step_id': step.id}))
+        forked = Course.objects.get(owner=self.user)
+        self.assertEqual(forked.forked_from, shared)
+        self.assertEqual(forked.hours_done, 0)
+        step.refresh_from_db()
+        self.assertEqual(step.course, forked)
+
+    def test_fork_step_requires_owner_of_the_roadmap(self):
+        stranger = Roadmap.objects.create(owner=self.other, title='Not Yours')
+        step = RoadmapCourse.objects.create(roadmap=stranger, course_title_override='Locked', position=0)
+        response = self.client.post(
+            reverse('roadmap_fork_step', kwargs={'slug': stranger.slug, 'step_id': step.id}),
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Course.objects.filter(owner=self.user).exists())
+
+    def test_fork_get_redirects_back_to_the_roadmap(self):
+        response = self.client.get(
+            reverse('roadmap_fork_step', kwargs={'slug': self.roadmap.slug, 'step_id': self.tracked.id}),
+        )
+        self.assertRedirects(response, reverse('roadmap_detail', kwargs={'slug': self.roadmap.slug}))
+
+    def test_desk_lists_roadmaps_with_course_progress(self):
+        self.link_course(title='Operating Systems', total_hours=20.0, hours_done=10.0)
+        response = self.client.get(reverse('dashboard'))
+        self.assertContains(response, 'Systems Path')
+        self.assertContains(response, '0/2 courses done')
+        self.assertContains(response, '25%')
+
+    def test_roadmap_list_shows_progress(self):
+        self.plain.progress_percent = 100
+        self.plain.save()
+        response = self.client.get(reverse('roadmaps'))
+        self.assertContains(response, '1/2 courses')
+        self.assertEqual(response.context['roadmaps'][0]['progress'], 50)
+
+    def test_public_roadmap_hides_private_course_progress(self):
+        self.link_course(title='Operating Systems', total_hours=20.0, hours_done=10.0, is_public=False)
+        response = self.client.get(reverse('public:roadmap_public', kwargs={'slug': self.roadmap.slug}))
+        step = response.context['steps'][0]
+        self.assertFalse(step.is_trackable())
+        self.assertEqual(step.course_progress(), 0)
+
+    def test_public_roadmap_shows_public_course_progress(self):
+        self.link_course(title='Operating Systems', total_hours=20.0, hours_done=10.0, is_public=True)
+        response = self.client.get(reverse('public:roadmap_public', kwargs={'slug': self.roadmap.slug}))
+        step = response.context['steps'][0]
+        self.assertTrue(step.is_trackable())
+        self.assertEqual(step.course_progress(), 50)
+        self.assertEqual(response.context['progress'], 25)
+
+    def test_course_page_lists_its_roadmaps(self):
+        course = self.link_course(title='Operating Systems', total_hours=20.0)
+        response = self.client.get(reverse('course_detail', kwargs={'slug': course.slug}))
+        self.assertContains(response, 'Systems Path')
+        self.assertContains(response, reverse('roadmap_detail', kwargs={'slug': self.roadmap.slug}))
+
+    def test_studio_lists_per_course_progress(self):
+        self.link_course(title='Operating Systems', total_hours=20.0, hours_done=10.0)
+        response = self.client.get(reverse('roadmap_steps_edit', kwargs={'slug': self.roadmap.slug}))
+        self.assertContains(response, 'Fork to my desk')
+        self.assertContains(response, reverse('roadmap_fork_step', kwargs={'slug': self.roadmap.slug, 'step_id': self.plain.id}))
+        self.assertEqual(response.context['progress'], 25)
+
+    def test_clone_get_renders_the_shared_roadmap(self):
+        response = self.client.get(reverse('roadmap_clone', kwargs={'slug': self.roadmap.slug}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Operating Systems')
+
+
 class AddToDeskTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='tester', password='password123')
