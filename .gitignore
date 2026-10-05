@@ -1,13 +1,2 @@
-venv/
-.env
-.env.local
-.env.*.local
-db.sqlite3
-test_db.sqlite3
-__pycache__/
-*.pyc
-*.pyo
-.pytest_cache/
-staticfiles/
-.vercel/
-node_modules/
+.vercel
+.env*
