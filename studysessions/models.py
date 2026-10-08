@@ -31,6 +31,11 @@ class StudySession(models.Model):
         default=0, help_text='Study time the user confirmed and credited to the course.')
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # Set by refresh_lifecycle() when it auto-finishes this session during the
+    # current request ('break', 'target' or 'overrun') so views can tell the
+    # user why the session ended. Not persisted — it describes this request.
+    expired_reason = None
+
     class Meta:
         ordering = ['-created_at']
 
@@ -43,7 +48,26 @@ class StudySession(models.Model):
         return self.study_segments.filter(ended_at__isnull=True).first()
 
     def _open_break(self):
-        return self.break_segments.filter(ended_at__isnull=True).first()
+        """The break running right now: the newest still-open segment.
+
+        Stale open segments (if a request ever died mid-cycle) are older, so
+        the newest one is always the clock to trust. pause/resume/finish close
+        every leftover segment, so in practice there is only ever one.
+        """
+        return self.break_segments.filter(ended_at__isnull=True).order_by('-started_at').first()
+
+    @property
+    def open_break(self):
+        """The running break, for templates and the state API.
+
+        Never reach for ``break_segments.first`` in a template: that is the
+        *first* break of the session, which is already closed once a second
+        break is taken — a countdown built from it starts wrong and makes the
+        client think the break is over (or already expired).
+        """
+        if self.status != self.STATUS_PAUSED:
+            return None
+        return self._open_break()
 
     def study_seconds(self):
         """Total study time across closed + open segments."""
@@ -87,20 +111,29 @@ class StudySession(models.Model):
         - A paused session whose break runs past MAX_BREAK_MINUTES is finished automatically.
         - An active session with a target_minutes whose focus time reached the target is finished.
         - A free-focus active session running over 12 hours is auto-finished.
+
+        When a session is finished here, ``expired_reason`` is set to 'break',
+        'target' or 'overrun' so the views can explain it to the user.
         """
         if self.status == self.STATUS_ACTIVE:
             if self.target_minutes and self.study_seconds() >= self.target_minutes * 60:
+                self.expired_reason = 'target'
                 self.finish()
             elif self.study_seconds() >= 12 * 3600:
+                self.expired_reason = 'overrun'
                 self.finish()
             return self
 
         if self.status == self.STATUS_PAUSED:
             br = self._open_break()
             if not br:
+                # Defensive: paused with no running break means the break row was
+                # lost. Resume instead of freezing the session forever.
+                self.resume()
                 return self
             ceiling = timezone.now() - dt.timedelta(minutes=settings.MAX_BREAK_MINUTES)
             if br.started_at < ceiling:
+                self.expired_reason = 'break'
                 self.finish(force=True)
             return self
 
@@ -108,32 +141,53 @@ class StudySession(models.Model):
 
 
     def pause(self):
+        """Take a break: close the study segment and open a break segment."""
         if self.status != self.STATUS_ACTIVE:
             return False
-        seg = self._open_study()
-        if seg:
-            seg.ended_at = timezone.now()
-            seg.save()
-        BreakSegment.objects.create(session=self)
+        now = timezone.now()
+        # Close leftovers from an earlier cycle first, so exactly one study
+        # segment and exactly one break segment are open afterwards. Without
+        # this, a second break would leave the first one running and every
+        # countdown/expiry check would key off a stale timestamp.
+        self.study_segments.filter(ended_at__isnull=True).update(ended_at=now)
+        self.break_segments.filter(ended_at__isnull=True).update(ended_at=now)
+        BreakSegment.objects.create(session=self, started_at=now)
         self.status = self.STATUS_PAUSED
         self.save()
         return True
 
     def resume(self):
+        """End the break and go back to studying.
+
+        Returns 'ok', 'ended' (the break ran past MAX_BREAK_MINUTES) or
+        'noop' (the session was not paused).
+        """
         if self.status != self.STATUS_PAUSED:
             return 'noop'
+        now = timezone.now()
         br = self._open_break()
-        if not br:
-            self.status = self.STATUS_ACTIVE
-            self.save()
-            return 'ok'
-        expired = timezone.now() - br.started_at > dt.timedelta(minutes=settings.MAX_BREAK_MINUTES)
-        if expired:
+        if br and now - br.started_at > dt.timedelta(minutes=settings.MAX_BREAK_MINUTES):
+            self.expired_reason = 'break'
             self.finish(force=True)
             return 'ended'
-        br.ended_at = timezone.now()
-        br.save()
-        StudySegment.objects.create(session=self)
+
+        # Close every open break so break_seconds()/timed_out() stop ticking.
+        for seg in self.break_segments.filter(ended_at__isnull=True):
+            seg.ended_at = now
+            seg.save()
+
+        # Study time must never stop ticking: a segment left open while paused
+        # is closed at the break start (so break time is not counted), and a
+        # session with no open segment gets a fresh one.
+        open_study = list(self.study_segments.filter(ended_at__isnull=True))
+        if open_study:
+            cut = br.started_at if br else now
+            for seg in open_study:
+                seg.ended_at = max(seg.started_at, cut)
+                seg.save()
+        else:
+            StudySegment.objects.create(session=self, started_at=now)
+
         self.status = self.STATUS_ACTIVE
         self.save()
         return 'ok'
@@ -142,13 +196,11 @@ class StudySession(models.Model):
         if self.status == self.STATUS_FINISHED:
             return
         now = timezone.now()
-        seg = self._open_study()
-        if seg:
-            seg.ended_at = now
-            seg.save()
-        br = self._open_break()
-        if br:
-            # A forced finish clamps the break to the allowed ceiling.
+        # Close *every* open segment: an orphaned one would keep counting time
+        # on a finished session (and would make the next session look expired).
+        self.study_segments.filter(ended_at__isnull=True).update(ended_at=now)
+        for br in self.break_segments.filter(ended_at__isnull=True):
+            # A break never counts past the allowed ceiling.
             br.ended_at = min(
                 now,
                 br.started_at + dt.timedelta(minutes=settings.MAX_BREAK_MINUTES),
@@ -217,6 +269,19 @@ class StudySegment(models.Model):
     class Meta:
         ordering = ['started_at']
 
+    def __str__(self):
+        return f'{self.session_id} · study {self.started_at:%Y-%m-%d %H:%M}'
+
+    @property
+    def seconds(self):
+        """Length in seconds; an open block measures up to now."""
+        end = self.ended_at or timezone.now()
+        return max(0, int((end - self.started_at).total_seconds()))
+
+    @property
+    def minutes(self):
+        return max(0, round(self.seconds / 60))
+
 
 class BreakSegment(models.Model):
     session = models.ForeignKey(StudySession, on_delete=models.CASCADE, related_name='break_segments')
@@ -225,3 +290,16 @@ class BreakSegment(models.Model):
 
     class Meta:
         ordering = ['started_at']
+
+    def __str__(self):
+        return f'{self.session_id} · break {self.started_at:%Y-%m-%d %H:%M}'
+
+    @property
+    def seconds(self):
+        """Length in seconds; an open break measures up to now."""
+        end = self.ended_at or timezone.now()
+        return max(0, int((end - self.started_at).total_seconds()))
+
+    @property
+    def minutes(self):
+        return max(0, round(self.seconds / 60))

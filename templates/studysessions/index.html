@@ -145,7 +145,7 @@
          data-status="paused"
          data-id="{{ session.id }}"
          data-started="{{ session.started_at|date:'c' }}"
-         data-paused-at="{{ session.break_segments.first.started_at|date:'c' }}"
+         data-paused-at="{{ session.open_break.started_at|date:'c' }}"
          data-max-break="{{ max_break_minutes }}"
          data-api="{% url 'session_state_api' %}">
     {% endif %}

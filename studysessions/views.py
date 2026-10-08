@@ -13,15 +13,48 @@ from .models import StudySession
 
 
 def _current(request):
+    """The user's current session with expiry enforced server-side.
+
+    A session whose break/target already ran out comes back here *finished*,
+    with ``expired_reason`` set — call ``_is_live`` to find out whether it is
+    still usable and ``_announce_expiry`` to tell the user what happened.
+    """
     session = StudySession.current_for(request.user)
     if session:
         session.refresh_lifecycle()
     return session
 
 
+def _is_live(session):
+    """True while the session is still running (focusing or on a break)."""
+    return session is not None and session.status in (
+        StudySession.STATUS_ACTIVE,
+        StudySession.STATUS_PAUSED,
+    )
+
+
+def _announce_expiry(request, session):
+    """Explain a session that just expired server-side (e.g. a break that ran out)."""
+    if session is None:
+        return
+    reason = getattr(session, 'expired_reason', None)
+    if reason == 'break':
+        messages.warning(request, 'Your break lasted too long. Session ended — the clock counts what you earned.')
+    elif reason == 'target':
+        messages.info(request, 'Focus target reached — session ended. The clock counts what you earned.')
+    elif reason:
+        messages.info(request, 'Session ended — the clock counts what you earned.')
+
+
 @login_required
 def study_index(request):
     session = _current(request)
+    if not _is_live(session):
+        # The session just expired (break ran out / target reached): explain it
+        # and fall through to the check-in or the setup screen instead of
+        # rendering controls for a session that is already finished.
+        _announce_expiry(request, session)
+        session = None
     courses = [c for c in request.user.courses.all()[:20] if c.is_active_course()]
     recent = request.user.study_sessions.filter(status='finished').order_by('-ended_at')[:8]
     pending = StudySession.objects.filter(
@@ -55,9 +88,13 @@ def study_index(request):
 def session_start(request):
     if request.method != 'POST':
         return redirect('study')
-    if _current(request):
+    existing = _current(request)
+    if _is_live(existing):
         messages.warning(request, 'You already have a running session. Finish or resume it first.')
         return redirect('study')
+    if existing:
+        # It expired while the page was open — start a fresh session and say why.
+        _announce_expiry(request, existing)
     course = None
     course_id = request.POST.get('course') or ''
     if course_id:
@@ -84,8 +121,14 @@ def session_pause(request):
     if request.method != 'POST':
         return redirect('study')
     session = _current(request)
-    if session and session.pause():
+    if session is None:
+        messages.warning(request, 'There is no running session to pause.')
+    elif session.pause():
         messages.info(request, f'Break starts now. You have {settings.MAX_BREAK_MINUTES} minutes — then the session dies.')
+    elif session.status == StudySession.STATUS_PAUSED:
+        messages.info(request, 'You are already on a break.')
+    else:
+        _announce_expiry(request, session)
     return redirect('study')
 
 
@@ -94,7 +137,13 @@ def session_resume(request):
     if request.method != 'POST':
         return redirect('study')
     session = _current(request)
-    if session:
+    if session is None:
+        messages.warning(request, 'There is no session to resume.')
+    elif not _is_live(session):
+        # The break ran out while the user was away: say so instead of
+        # pretending they are back at it.
+        _announce_expiry(request, session)
+    else:
         result = session.resume()
         if result == 'ended':
             messages.warning(request, 'Your break lasted too long. Session ended — the clock counts what you earned.')
@@ -108,7 +157,7 @@ def session_end(request):
     if request.method != 'POST':
         return redirect('study')
     session = _current(request)
-    if session:
+    if _is_live(session):
         has_course = bool(session.course)
         session.finish()
         ms = session.duration_seconds / 60
@@ -118,6 +167,9 @@ def session_end(request):
             session.checked_in = True
             session.save()
             messages.success(request, f'Session finished — {ms:.0f} min of free focus logged.')
+    elif session:
+        # e.g. the client posted the end form exactly as the break expired.
+        _announce_expiry(request, session)
     return redirect('study')
 
 
@@ -185,6 +237,10 @@ def session_log(request):
 def session_state_api(request):
     """Lightweight JSON for the timer so the page can tick without reloading."""
     session = _current(request)
+    if session and not _is_live(session):
+        # The session expired during this poll (break ran out / target reached).
+        # Park the explanation so the reload that follows can show it.
+        _announce_expiry(request, session)
     payload = {'session': None}
     if session:
         now = timezone.now()
@@ -199,7 +255,7 @@ def session_state_api(request):
             'target': session.target_minutes,
             'course': session.course.title if session.course else 'Focus',
         }
-        break_seg = session.break_segments.filter(ended_at__isnull=True).first()
+        break_seg = session.open_break
         if break_seg:
             payload['session']['paused_at'] = break_seg.started_at.isoformat()
             payload['session']['break_left'] = max(

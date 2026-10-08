@@ -12,21 +12,52 @@ from django.forms.models import modelform_factory
 
 User = get_user_model()
 
-WIDE_FIELDS = {'notes', 'description', 'bio', 'password1', 'password2', 'title', 'username',
-               'email', 'link', 'first_name', 'last_name', 'course_title_override'}
+WIDE_FIELDS = {'notes', 'description', 'bio', 'password1', 'password2', 'new_password1', 'new_password2',
+               'title', 'username', 'email', 'link', 'first_name', 'last_name', 'course_title_override'}
 
 
-def _widget_for(name, model_field):
+class MinutesField(forms.IntegerField):
+    """Minutes in the browser, seconds on the row.
+
+    The panel never asks anyone to type seconds. ``duration_seconds`` stays a
+    seconds column in the database — the clock produces it — but reads and
+    writes here happen in minutes and convert on the way in.
+    """
+
+    def __init__(self, *args, divisor=60, **kwargs):
+        self.divisor = divisor
+        kwargs.setdefault('min_value', 0)
+        kwargs.setdefault('help_text', 'In minutes. Stored as seconds.')
+        super().__init__(*args, **kwargs)
+
+    def prepare_value(self, value):
+        if value in (None, ''):
+            return None
+        try:
+            return max(0, round(int(value) / self.divisor))
+        except (TypeError, ValueError):
+            return None
+
+    def clean(self, value):
+        minutes = super().clean(value)
+        return None if minutes is None else minutes * self.divisor
+
+
+def _widget_for(name, model_field, minute_fields=()):
     """Give date/time inputs the native pickers the rest of the site uses."""
     internal = model_field.get_internal_type()
     attrs = {'autocomplete': 'off'}
+    if name in minute_fields:
+        return forms.NumberInput(attrs={'autocomplete': 'off', 'min': '0', 'step': '1', 'inputmode': 'numeric'})
     if internal == 'DateField':
         return forms.DateInput(attrs={**attrs, 'type': 'date'})
     if internal == 'DateTimeField':
         return forms.DateTimeInput(attrs={**attrs, 'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M')
-    if internal in ('FloatField', 'PositiveIntegerField', 'IntegerField', 'PositiveSmallIntegerField',
-                    'SmallIntegerField'):
+    if internal == 'FloatField':
         return forms.NumberInput(attrs={**attrs, 'step': 'any'})
+    if internal in ('PositiveIntegerField', 'IntegerField', 'PositiveSmallIntegerField',
+                    'SmallIntegerField', 'BigIntegerField'):
+        return forms.NumberInput(attrs={**attrs, 'step': '1'})
     if internal == 'TextField':
         return forms.Textarea(attrs={**attrs, 'rows': 4})
     if internal == 'URLField':
@@ -54,11 +85,16 @@ def form_class_for(spec, instance=None):
         return _cache[spec.key]
 
     model = spec.model
+    minute_fields = spec.minute_field_set
     widgets = {}
     labels = {}
     helps = {}
+    declared = {}
     for name in spec.form_fields:
         model_field = model._meta.get_field(name)
+        if name in minute_fields:
+            declared[name] = MinutesField(label=f'{model_field.verbose_name.capitalize()} (min)')
+            continue
         widget = _widget_for(name, model_field)
         if widget is not None:
             widgets[name] = widget
@@ -73,7 +109,9 @@ def form_class_for(spec, instance=None):
         labels=labels,
         help_texts=helps,
     )
-    cls = type(f'{model.__name__}PanelForm', (base,), {'wide_fields': WIDE_FIELDS})
+    attrs = {'wide_fields': WIDE_FIELDS}
+    attrs.update(declared)
+    cls = type(f'{model.__name__}PanelForm', (base,), attrs)
     _cache[spec.key] = cls
     return cls
 
@@ -84,25 +122,33 @@ def form_for(spec, data=None, instance=None):
 
 # ------------------------------------------------------------------ users
 
+def _user_meta():
+    """Build a fresh ModelForm Meta — Django's options are consumed, not shared."""
+    return type('Meta', (), {
+        'model': User,
+        'fields': ('username', 'email', 'first_name', 'last_name', 'is_active', 'is_staff', 'is_superuser'),
+        'labels': {
+            'is_active': 'Active',
+            'is_staff': 'Staff (can reach the Django admin)',
+            'is_superuser': 'Superuser',
+        },
+    })
+
+
 class UserCreateForm(forms.ModelForm):
     password1 = forms.CharField(
         label='Password',
         widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}),
-        help_text='At least 8 characters, not a common one.',
+        help_text='At least 8 characters, and not a common one.',
     )
     password2 = forms.CharField(
         label='Repeat password',
         widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}),
+        help_text='Must match the password above.',
     )
 
-    class Meta:
-        model = User
-        fields = ('username', 'email', 'first_name', 'last_name', 'is_active', 'is_staff', 'is_superuser')
-        labels = {
-            'is_active': 'Active',
-            'is_staff': 'Staff (can reach the Django admin)',
-            'is_superuser': 'Superuser',
-        }
+    class Meta(_user_meta()):
+        pass
 
     wide_fields = WIDE_FIELDS
 
@@ -121,15 +167,16 @@ class UserCreateForm(forms.ModelForm):
         p2 = self.cleaned_data.get('password2')
         if p1 and p2 and p1 != p2:
             raise forms.ValidationError('The two passwords do not match.')
-        validate_password(p2 or p1 or '')
+        candidate = p1 or p2
+        if candidate:
+            validate_password(candidate)
         return p2
 
     def save(self, commit=True):
         user = super().save(commit=False)
         user.set_password(self.cleaned_data['password1'])
         user.save()
-        from accounts.models import Profile
-        Profile.objects.get_or_create(user=user)
+        # accounts.signals.ensure_profile already creates the Profile on insert.
         return user
 
 
@@ -146,16 +193,11 @@ class UserEditForm(forms.ModelForm):
         label='Repeat new password',
         required=False,
         widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}),
+        help_text='Must match the new password above.',
     )
 
-    class Meta:
-        model = User
-        fields = ('username', 'email', 'first_name', 'last_name', 'is_active', 'is_staff', 'is_superuser')
-        labels = {
-            'is_active': 'Active',
-            'is_staff': 'Staff (can reach the Django admin)',
-            'is_superuser': 'Superuser',
-        }
+    class Meta(_user_meta()):
+        pass
 
     wide_fields = WIDE_FIELDS
 
@@ -171,7 +213,7 @@ class UserEditForm(forms.ModelForm):
             return ''
         if p1 != p2:
             raise forms.ValidationError('The two passwords do not match.')
-        validate_password(p2, self.instance)
+        validate_password(p1 or '', self.instance)
         return p2
 
     def save(self, commit=True):

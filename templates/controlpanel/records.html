@@ -17,7 +17,7 @@
 </header>
 
 <form class="cp-search" method="get" role="search">
-  <input type="search" name="q" value="{{ term }}" placeholder="Search {{ spec.title|lower }}…"
+  <input type="search" name="q" value="{{ term }}" placeholder="Search {{ spec.title|lower }} by {{ spec.search.0|default:"anything" }} or id…"
          aria-label="Search {{ spec.title }}">
   <button class="btn btn-md btn-ghost" type="submit">Search</button>
   {% if term %}<a class="btn btn-md btn-ghost" href="{% url 'controlpanel:records' spec.key %}">Clear</a>{% endif %}
@@ -29,14 +29,15 @@
 {% if rows %}
 <form method="post" action="{% url 'controlpanel:bulk_delete' spec.key %}" id="cp-bulk-form">
   {% csrf_token %}
+  {% for key, value in list_params.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
   <div class="cp-table-wrap">
     <table class="cp-table">
       <thead>
         <tr>
           <th class="cp-th-check"><input type="checkbox" id="cp-select-all" aria-label="Select every row on this page"></th>
           <th class="cp-th-id">#</th>
-          {% for cell in rows.0.cells %}
-          <th>{{ cell.label }}</th>
+          {% for col in spec.columns %}
+          <th>{{ col.label }}</th>
           {% endfor %}
           <th class="cp-th-actions">Actions</th>
         </tr>
@@ -51,7 +52,14 @@
           {% for cell in row.cells %}
           <td class="cp-td">
             {% if cell.kind == 'bool' %}
-              {% if cell.on %}<span class="cp-flag is-on">yes</span>{% else %}<span class="cp-flag">no</span>{% endif %}
+              {% if cell.field in toggle_fields %}
+                <button class="cp-flag cp-flag--btn{% if cell.on %} is-on{% endif %}" type="submit"
+                        name="next" formaction="{% url 'controlpanel:toggle_flag' spec.key row.pk cell.field %}"
+                        value="{{ list_params.q }}" aria-pressed="{% if cell.on %}true{% else %}false{% endif %}"
+                        title="Toggle {{ cell.label }}">{{ cell.value }}</button>
+              {% else %}
+                {% if cell.on %}<span class="cp-flag is-on">{{ cell.value }}</span>{% else %}<span class="cp-flag">{{ cell.value }}</span>{% endif %}
+              {% endif %}
             {% elif cell.kind == 'url' %}
               {% if cell.on %}<a class="cp-link-out mono" href="{{ cell.value }}" target="_blank" rel="noopener noreferrer">{{ cell.value|truncatechars:34 }}</a>
               {% else %}<span class="cp-none">—</span>{% endif %}
@@ -94,13 +102,13 @@
 {% if paginator.num_pages > 1 %}
 <nav class="cp-pager" aria-label="Pagination">
   {% if page.has_previous %}
-    <a class="btn btn-sm btn-ghost" href="?{% if term %}q={{ term|urlencode }}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>
+    <a class="btn btn-sm btn-ghost" href="?q={{ term|urlencode }}&amp;page={{ page.previous_page_number }}">Previous</a>
   {% else %}
     <span class="btn btn-sm btn-ghost is-disabled">Previous</span>
   {% endif %}
   <span class="cp-pager-pos mono">Page {{ page.number }} of {{ paginator.num_pages }}</span>
   {% if page.has_next %}
-    <a class="btn btn-sm btn-ghost" href="?{% if term %}q={{ term|urlencode }}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>
+    <a class="btn btn-sm btn-ghost" href="?q={{ term|urlencode }}&amp;page={{ page.next_page_number }}">Next</a>
   {% else %}
     <span class="btn btn-sm btn-ghost is-disabled">Next</span>
   {% endif %}

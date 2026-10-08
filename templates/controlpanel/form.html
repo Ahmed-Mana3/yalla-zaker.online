@@ -9,15 +9,17 @@
     <p class="cp-head-sub">
       {% if obj %}Editing <strong>{{ obj }}</strong>.{% else %}A blank record, saved straight into {{ spec.model_label }}.{% endif %}
     </p>
+    {% if spec.danger %}<span class="cp-danger-note">{{ spec.danger }}</span>{% endif %}
   </div>
   <div class="cp-head-actions">
-    <a class="btn btn-ghost" href="{% url 'controlpanel:records' spec.key %}">Back to {{ spec.title|lower }}</a>
+    <a class="btn btn-ghost" href="{% url 'controlpanel:records' spec.key %}{% if list_params.q %}?q={{ list_params.q|urlencode }}{% endif %}">Back to {{ spec.title|lower }}</a>
   </div>
 </header>
 
 <div class="cp-form-wrap">
   <form method="post" class="cp-form">
     {% csrf_token %}
+    {% for key, value in list_params.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
 
     {% if form.non_field_errors %}
     <div class="field-errors cp-form-errors">
@@ -31,7 +33,7 @@
         <label for="{{ field.id_for_label }}">
           {{ field.label }}{% if field.field.required %} <span class="cp-req" aria-hidden="true">*</span>{% endif %}
         </label>
-        {% if field.field.widget.input_type == 'checkbox' %}
+          {% if field.field.widget.input_type == 'checkbox' %}
           <label class="checkbox-row cp-check">{{ field }} <span>{{ field.label }}</span></label>
         {% else %}
           {{ field }}
@@ -44,13 +46,13 @@
 
     <div class="form-actions cp-form-actions">
       <button class="btn btn-primary" type="submit">{% if mode == 'edit' %}Save changes{% else %}Add record{% endif %}</button>
-      <a class="btn btn-ghost" href="{% url 'controlpanel:records' spec.key %}">Cancel</a>
+      <a class="btn btn-ghost" href="{% url 'controlpanel:records' spec.key %}{% if list_params.q %}?q={{ list_params.q|urlencode }}{% endif %}">Cancel</a>
       {% if mode == 'edit' and spec.can_duplicate %}
       <button class="btn btn-accent" type="submit" formaction="{% url 'controlpanel:duplicate' spec.key obj.pk %}"
               formnovalidate>Duplicate</button>
       {% endif %}
       {% if mode == 'edit' %}
-      <a class="btn btn-danger-ghost cp-form-danger" href="{% url 'controlpanel:record_delete' spec.key obj.pk %}">Delete</a>
+      <a class="btn btn-danger-ghost cp-form-danger" href="{% url 'controlpanel:record_delete' spec.key obj.pk %}{% if list_params.q %}?q={{ list_params.q|urlencode }}{% endif %}">Delete</a>
       {% endif %}
     </div>
   </form>

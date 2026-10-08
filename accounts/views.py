@@ -123,7 +123,9 @@ def dashboard(request):
         'today_seconds': today_seconds,
         'longest': longest,
         'total_seconds': total_seconds,
-        'active_session': StudySession.current_for(user),
+        # live_for() re-checks expiry, so a session whose break just ran out
+        # never renders a stuck break ring on the dashboard.
+        'active_session': StudySession.live_for(user),
         'friends': friends,
         'max_break_minutes': settings.MAX_BREAK_MINUTES,
         'roadmap_cards': roadmap_cards,

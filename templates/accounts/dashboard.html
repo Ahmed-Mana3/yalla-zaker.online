@@ -41,7 +41,7 @@
            {% if active_session.status == 'active' %}
              data-elapsed="{{ active_session.study_seconds }}" data-target="{{ active_session.target_minutes|default:'' }}"
            {% else %}
-             data-paused-at="{{ active_session.break_segments.first.started_at|date:'c' }}" data-max-break="{{ max_break_minutes }}"
+             data-paused-at="{{ active_session.open_break.started_at|date:'c' }}" data-max-break="{{ max_break_minutes }}"
            {% endif %}
            role="img"
            aria-label="{{ active_session.study_seconds|dur }} on the clock">

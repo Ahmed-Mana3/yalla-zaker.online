@@ -29,15 +29,15 @@
     <span class="cp-metric-lab">records on the panel</span>
   </div>
   <div class="cp-metric">
-    <span class="cp-metric-num mono">{{ by_key.user }}</span>
+    <span class="cp-metric-num mono">{{ by_key.user|default:0 }}</span>
     <span class="cp-metric-lab">accounts</span>
   </div>
   <div class="cp-metric">
-    <span class="cp-metric-num mono">{{ by_key.course }}</span>
+    <span class="cp-metric-num mono">{{ by_key.course|default:0 }}</span>
     <span class="cp-metric-lab">courses</span>
   </div>
   <div class="cp-metric">
-    <span class="cp-metric-num mono">{{ by_key.studysession }}</span>
+    <span class="cp-metric-num mono">{{ by_key.studysession|default:0 }}</span>
     <span class="cp-metric-lab">study sessions</span>
   </div>
 </div>

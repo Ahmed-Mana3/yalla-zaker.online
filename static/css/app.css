@@ -4591,6 +4591,16 @@ body.landing-page {
 }
 .cp-flag.is-on { background: var(--green-soft); color: var(--green-deep); }
 
+/* Booleans the panel can flip in place are buttons, not decoration. */
+.cp-flag--btn {
+  border: 1px solid transparent;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--t), color var(--t), border-color var(--t);
+}
+.cp-flag--btn:hover { border-color: var(--line-strong); }
+.cp-flag--btn:focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
+
 .cp-link-out { font-size: 0.78rem; }
 .cp-none { color: var(--faint); }
 
@@ -4721,6 +4731,7 @@ body.landing-page {
 .cp-danger-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
 .cp-danger-list li { font-size: 0.88rem; color: var(--text); }
 .cp-danger-num { font-weight: 700; color: var(--magenta-deep); margin-right: 4px; }
+.cp-danger-list li:not(:has(.cp-danger-num)) { color: var(--magenta-deep); }
 
 .cp-preview {
   list-style: none;

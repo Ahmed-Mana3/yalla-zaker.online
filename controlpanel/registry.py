@@ -4,6 +4,17 @@ Every model exposed on the panel is declared once here: which columns the table
 shows, how the record is labelled, which fields are editable, and what a search
 matches. Adding a model to the panel means adding one ``ModelSpec`` to
 ``REGISTRY`` — no view or template changes required.
+
+Column kinds
+------------
+``text`` ``num`` ``bool`` ``date`` ``datetime`` ``choice`` ``url`` ``rel``
+``minutes`` — a duration stored in seconds but always shown in minutes.
+``count``    — the number of rows on the other side of a relation.
+
+Time is stored in seconds (``StudySession.duration_seconds``) because that is
+what the clock produces, but the panel only ever writes or displays minutes. A
+field named in ``ModelSpec.minute_fields`` is rendered as minutes in the table
+and accepted as minutes in the form, then converted back to seconds on save.
 """
 
 from dataclasses import dataclass
@@ -11,9 +22,19 @@ from typing import Any
 
 from django.apps import apps
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 
 User = get_user_model()
+
+SECONDS_PER_MINUTE = 60
+
+
+def as_minutes(seconds) -> int:
+    """Whole minutes for a seconds count. ``None``/blank stays ``None``."""
+    if seconds in (None, ''):
+        return None
+    return max(0, round(float(seconds) / SECONDS_PER_MINUTE))
 
 
 @dataclass(frozen=True)
@@ -22,7 +43,7 @@ class Column:
 
     field: str
     label: str
-    kind: str = 'text'  # text | num | bool | date | datetime | choice | url | rel
+    kind: str = 'text'  # text | num | bool | date | datetime | choice | url | rel | minutes | count
 
 
 @dataclass(frozen=True)
@@ -37,11 +58,10 @@ class ModelSpec:
     form_fields: tuple = ()
     search: tuple = ()
     ordering: tuple = ()
-    readonly_fields: tuple = ()
-    row_template: str = ''
-    special_form: str = ''
+    # Fields stored in seconds but shown and edited as minutes.
+    minute_fields: tuple = ()
     danger: str = ''
-    icon: str = ''
+    special_form: str = ''
 
     @property
     def model(self):
@@ -50,6 +70,63 @@ class ModelSpec:
     @property
     def singular_lower(self):
         return self.singular.lower()
+
+    @property
+    def minute_field_set(self):
+        return frozenset(self.minute_fields)
+
+    def _forward_relations(self, model, skip=()):
+        """Single-valued relations on ``model``, ignoring self-references."""
+        return [
+            f for f in model._meta.fields
+            if (f.many_to_one or f.one_to_one) and f.name not in skip
+        ]
+
+    @property
+    def select_related_fields(self):
+        """Forward relations to fetch with the row so FK columns cost no query.
+
+        Column fields may walk a path (``session__user``). One extra hop is
+        followed past each of them because that is what ``__str__`` usually
+        reaches for — ``str(Course)`` prints its owner, so rendering the course
+        column would otherwise query per row.
+        """
+        out = []
+        for col in self.columns:
+            if col.kind != 'rel' or col.field in out:
+                continue
+            root = col.field.split('__', 1)[0]
+            field = self.model._meta.get_field(root)
+            if not (field.many_to_one or field.one_to_one):
+                continue
+            out.append(col.field)
+            target = field.related_model
+            skip = {col.field.split('__')[-1]} if '__' in col.field else set()
+            for nested in self._forward_relations(target, skip=skip):
+                path = f'{col.field}__{nested.name}'
+                if path not in out:
+                    out.append(path)
+        return tuple(out)
+
+    @property
+    def prefetch_fields(self):
+        """Relations whose row count is shown, prefetched to stay one query each."""
+        return tuple(
+            col.field for col in self.columns
+            if col.kind == 'count' and col.field not in self.select_related_fields
+        )
+
+    @property
+    def toggle_fields(self):
+        """Booleans the panel can flip straight from the table."""
+        out = []
+        for col in self.columns:
+            if col.kind != 'bool' or col.field not in self.form_fields:
+                continue
+            field = self.model._meta.get_field(col.field)
+            if field.get_internal_type() == 'BooleanField':
+                out.append(col.field)
+        return tuple(out)
 
     @property
     def blocked_unique_fields(self):
@@ -99,38 +176,74 @@ class ModelSpec:
 
     def get_queryset(self):
         qs = self.model._default_manager.all()
+        if self.select_related_fields:
+            qs = qs.select_related(*self.select_related_fields)
+        if self.prefetch_fields:
+            qs = qs.prefetch_related(*self.prefetch_fields)
         ordering = self.ordering or tuple(self.model._meta.ordering or ('-pk',))
+        # Prefetch_related needs a concrete ordering or it warns; pk breaks ties
+        # so paging is stable even when the model's own ordering is ambiguous.
         return qs.order_by(*ordering)
 
     def search_queryset(self, queryset, term):
-        term = term.strip()
+        """Filter by the spec's search paths, falling back to an exact pk hit.
+
+        Every search path is a forward relation, so the joins cannot fan rows
+        out — no DISTINCT needed, and adding one would break the related-field
+        ordering that PostgreSQL rejects.
+        """
+        term = (term or '').strip()
         if not term:
             return queryset
-        if term.isdigit() and not self.search:
-            return queryset.filter(pk=int(term))
         clause = Q()
-        hits = False
         for path in self.search:
             clause |= Q(**{f'{path}__icontains': term})
-            hits = True
-        if hits:
-            return queryset.filter(clause).distinct()
-        return queryset.filter(pk=term) if term.isdigit() else queryset.none()
+        if term.isdigit():
+            clause |= Q(pk=int(term))
+        if not self.search:
+            return queryset.filter(pk=term) if term.isdigit() else queryset.none()
+        return queryset.filter(clause)
 
     def cascade_targets(self, obj) -> list:
-        """Reverse relations that will be wiped when ``obj`` is deleted."""
+        """Reverse relations touched when ``obj`` is deleted.
+
+        CASCADE rows disappear; SET_NULL rows survive with the pointer cleared.
+        Reporting both is the difference between “this is safe” and “you have
+        not read the consequences”.
+        """
         out = []
         for rel in obj._meta.related_objects:
-            if rel.field.remote_field.on_delete.__name__ != 'CASCADE':
+            if rel.one_to_many is False and rel.one_to_one is False:
+                continue  # many-to-many: nothing is deleted with the parent
+            action = getattr(rel.field.remote_field.on_delete, '__name__', '')
+            if action not in ('CASCADE', 'SET_NULL'):
                 continue
             accessor = rel.get_accessor_name()
             try:
-                count = getattr(obj, accessor).count()
+                related = getattr(obj, accessor)
+                count = related.count() if hasattr(related, 'count') else 1
+            except ObjectDoesNotExist:
+                count = 0
             except (AttributeError, TypeError, ValueError):
                 continue
-            name = rel.related_model._meta.verbose_name_plural
-            out.append({'label': str(name), 'count': count, 'rel': accessor})
-        return sorted(out, key=lambda item: -item['count'])
+            if not count:
+                continue
+            out.append({
+                'label': str(rel.related_model._meta.verbose_name_plural),
+                'count': count,
+                'rel': accessor,
+                'deletes': action == 'CASCADE',
+            })
+        return sorted(out, key=lambda item: (-item['count'], item['label']))
+
+    def bulk_cascade_targets(self, objects) -> list:
+        """Cascade impact of several records at once, merged by related model."""
+        merged = {}
+        for obj in objects:
+            for item in self.cascade_targets(obj):
+                slot = merged.setdefault(item['label'], {'label': item['label'], 'count': 0, 'deletes': item['deletes']})
+                slot['count'] += item['count']
+        return sorted(merged.values(), key=lambda item: (-item['count'], item['label']))
 
     def row_cells(self, obj) -> list:
         cells = []
@@ -138,22 +251,42 @@ class ModelSpec:
             cells.append(self.cell(obj, col))
         return cells
 
+    def resolve(self, obj, path):
+        """Walk a possibly-dotted field path, stopping clean at a null relation."""
+        value = obj
+        for part in path.split('__'):
+            if value is None:
+                return None
+            value = getattr(value, part, None)
+        return value
+
     def cell(self, obj, col) -> dict:
-        value: Any = getattr(obj, col.field, '')
+        value: Any = self.resolve(obj, col.field)
         kind = col.kind
+        base = {'label': col.label, 'field': col.field}
         if kind == 'bool':
-            return {'label': col.label, 'kind': kind, 'on': bool(value), 'value': 'Yes' if value else 'No'}
+            return {**base, 'kind': 'bool', 'on': bool(value), 'value': 'yes' if value else 'no'}
+        if kind == 'count':
+            try:
+                related = getattr(obj, col.field)
+                total = related.count() if hasattr(related, 'count') else 0
+            except ObjectDoesNotExist:
+                total = 0
+            return {**base, 'kind': 'num', 'value': total}
+        if kind == 'minutes':
+            minutes = as_minutes(value)
+            return {**base, 'kind': 'num', 'value': '—' if minutes is None else minutes}
         if kind in ('rel', 'text', 'choice') and value not in ('', None):
-            return {'label': col.label, 'kind': 'text', 'value': str(value)}
+            return {**base, 'kind': 'text', 'value': str(value)}
         if kind == 'url':
-            return {'label': col.label, 'kind': kind, 'value': value or '', 'on': bool(value)}
+            return {**base, 'kind': kind, 'value': value or '', 'on': bool(value)}
         if kind == 'datetime':
-            return {'label': col.label, 'kind': kind, 'value': value.strftime('%Y-%m-%d %H:%M') if value else '—'}
+            return {**base, 'kind': kind, 'value': value.strftime('%Y-%m-%d %H:%M') if value else '—'}
         if kind == 'date':
-            return {'label': col.label, 'kind': kind, 'value': value.strftime('%Y-%m-%d') if value else '—'}
+            return {**base, 'kind': kind, 'value': value.strftime('%Y-%m-%d') if value else '—'}
         if kind == 'num':
-            return {'label': col.label, 'kind': kind, 'value': '—' if value in ('', None) else value}
-        return {'label': col.label, 'kind': 'text', 'value': '—' if value in ('', None) else str(value)}
+            return {**base, 'kind': kind, 'value': '—' if value in ('', None) else value}
+        return {**base, 'kind': 'text', 'value': '—' if value in ('', None) else str(value)}
 
 
 C = Column
@@ -175,13 +308,21 @@ REGISTRY = (
         singular='User',
         blurb='Every account on the site. Deleting one removes everything they own.',
         group='People',
-        columns=USER_COLUMNS,
+        columns=(
+            C('username', 'Username'),
+            C('email', 'Email'),
+            C('is_active', 'Active', 'bool'),
+            C('is_staff', 'Staff', 'bool'),
+            C('is_superuser', 'Superuser', 'bool'),
+            C('courses', 'Courses', 'count'),
+            C('date_joined', 'Joined', 'datetime'),
+            C('last_login', 'Last login', 'datetime'),
+        ),
         form_fields=('username', 'email', 'first_name', 'last_name', 'is_active', 'is_staff', 'is_superuser'),
         search=('username', 'email', 'first_name', 'last_name'),
         ordering=('-date_joined',),
         special_form='user',
         danger='Cascades: profile, courses, roadmaps, sessions, challenges, friendships.',
-        icon='user',
     ),
     ModelSpec(
         key='profile',
@@ -199,7 +340,6 @@ REGISTRY = (
         form_fields=('user', 'bio', 'avatar_hue'),
         search=('user__username', 'bio'),
         danger='Cascades: nothing further.',
-        icon='user',
     ),
     ModelSpec(
         key='friendship',
@@ -213,11 +353,11 @@ REGISTRY = (
             C('to_user', 'To', 'rel'),
             C('status', 'Status', 'choice'),
             C('created_at', 'Created', 'datetime'),
+            C('updated_at', 'Updated', 'datetime'),
         ),
         form_fields=('from_user', 'to_user', 'status'),
         search=('from_user__username', 'to_user__username'),
         danger='Cascades: nothing further.',
-        icon='users',
     ),
     ModelSpec(
         key='course',
@@ -230,15 +370,17 @@ REGISTRY = (
             C('title', 'Course'),
             C('owner', 'Owner', 'rel'),
             C('link', 'Link', 'url'),
-            C('total_hours', 'Planned', 'num'),
-            C('hours_done', 'Earned', 'num'),
+            C('total_hours', 'Planned h', 'num'),
+            C('hours_done', 'Earned h', 'num'),
             C('is_public', 'Public', 'bool'),
+            C('studysession_set', 'Sessions', 'count'),
+            C('start_date', 'Starts', 'date'),
+            C('end_date', 'Ends', 'date'),
             C('created_at', 'Created', 'datetime'),
         ),
         form_fields=('owner', 'title', 'link', 'notes', 'start_date', 'end_date', 'total_hours', 'hours_done', 'is_public', 'forked_from'),
         search=('title', 'owner__username', 'notes'),
         danger='Study sessions keep their history; the course pointer is cleared.',
-        icon='book',
     ),
     ModelSpec(
         key='roadmap',
@@ -252,12 +394,12 @@ REGISTRY = (
             C('owner', 'Owner', 'rel'),
             C('description', 'Description'),
             C('is_public', 'Public', 'bool'),
+            C('steps', 'Steps', 'count'),
             C('created_at', 'Created', 'datetime'),
         ),
         form_fields=('owner', 'title', 'description', 'is_public', 'forked_from'),
         search=('title', 'owner__username', 'description'),
         danger='Cascades: every step inside the roadmap.',
-        icon='map',
     ),
     ModelSpec(
         key='roadmapcourse',
@@ -270,14 +412,14 @@ REGISTRY = (
             C('roadmap', 'Roadmap', 'rel'),
             C('course', 'Course', 'rel'),
             C('position', 'Position', 'num'),
-            C('planned_hours', 'Planned', 'num'),
-            C('progress_percent', 'Progress', 'num'),
+            C('planned_hours', 'Planned h', 'num'),
+            C('progress_percent', 'Progress %', 'num'),
             C('link', 'Link', 'url'),
         ),
         form_fields=('roadmap', 'course', 'position', 'course_title_override', 'planned_hours', 'link', 'progress_percent'),
         search=('roadmap__title', 'course__title', 'course_title_override'),
         ordering=('roadmap__title', 'position', 'id'),
-        icon='map',
+        danger='Cascades: nothing further. A linked course keeps its own history.',
     ),
     ModelSpec(
         key='challenge',
@@ -291,12 +433,12 @@ REGISTRY = (
             C('created_by', 'Created by', 'rel'),
             C('starts_at', 'Starts', 'date'),
             C('ends_at', 'Ends', 'date'),
+            C('members', 'Members', 'count'),
             C('created_at', 'Created', 'datetime'),
         ),
         form_fields=('title', 'description', 'created_by', 'starts_at', 'ends_at'),
         search=('title', 'description', 'created_by__username'),
         danger='Cascades: every membership row.',
-        icon='flag',
     ),
     ModelSpec(
         key='challengemember',
@@ -313,7 +455,6 @@ REGISTRY = (
         form_fields=('challenge', 'user'),
         search=('challenge__title', 'user__username'),
         danger='Cascades: nothing further.',
-        icon='flag',
     ),
     ModelSpec(
         key='studysession',
@@ -327,14 +468,19 @@ REGISTRY = (
             C('course', 'Course', 'rel'),
             C('status', 'Status', 'choice'),
             C('started_at', 'Started', 'datetime'),
-            C('duration_seconds', 'Clocked', 'num'),
-            C('manual_seconds', 'Credited', 'num'),
+            C('duration_seconds', 'Clocked min', 'minutes'),
+            C('manual_seconds', 'Credited min', 'minutes'),
+            C('target_minutes', 'Target min', 'num'),
+            C('checked_in', 'Checked in', 'bool'),
+            C('study_segments', 'Study blocks', 'count'),
+            C('break_segments', 'Breaks', 'count'),
+            C('ended_at', 'Ended', 'datetime'),
         ),
         form_fields=('user', 'course', 'status', 'started_at', 'ended_at', 'duration_seconds',
                      'target_minutes', 'checked_in', 'manual_seconds'),
+        minute_fields=('duration_seconds', 'manual_seconds'),
         search=('user__username', 'course__title'),
         danger='Cascades: every study and break segment inside the session.',
-        icon='clock',
     ),
     ModelSpec(
         key='studysegment',
@@ -345,12 +491,15 @@ REGISTRY = (
         group='Study',
         columns=(
             C('session', 'Session', 'rel'),
+            C('session__user', 'User', 'rel'),
             C('started_at', 'Started', 'datetime'),
             C('ended_at', 'Ended', 'datetime'),
+            # StudySegment.minutes is already minutes, so it needs no conversion.
+            C('minutes', 'Length min', 'num'),
         ),
         form_fields=('session', 'started_at', 'ended_at'),
         search=('session__user__username',),
-        icon='clock',
+        danger='Cascades: nothing further. The session total is not recalculated here.',
     ),
     ModelSpec(
         key='breaksegment',
@@ -361,12 +510,29 @@ REGISTRY = (
         group='Study',
         columns=(
             C('session', 'Session', 'rel'),
+            C('session__user', 'User', 'rel'),
             C('started_at', 'Started', 'datetime'),
             C('ended_at', 'Ended', 'datetime'),
+            C('minutes', 'Length min', 'num'),
         ),
         form_fields=('session', 'started_at', 'ended_at'),
         search=('session__user__username',),
-        icon='clock',
+        danger='Cascades: nothing further. The session total is not recalculated here.',
+    ),
+    ModelSpec(
+        key='group',
+        model_label='auth.Group',
+        title='Permission groups',
+        singular='Permission group',
+        blurb='Django permission bundles. Only these can reach /admin/ once Staff is on.',
+        group='People',
+        columns=(
+            C('name', 'Group'),
+            C('permissions', 'Permissions', 'count'),
+        ),
+        form_fields=('name', 'permissions'),
+        search=('name',),
+        danger='Staff accounts lose the permissions in this group immediately.',
     ),
 )
 
@@ -392,12 +558,28 @@ def get_spec(key: str):
     return spec
 
 
-def totals() -> list:
-    """Row count per model, for the dashboard."""
-    out = []
-    for spec in REGISTRY:
-        out.append({
-            'spec': spec,
-            'count': spec.model._default_manager.count(),
-        })
-    return out
+def counts() -> dict:
+    """``{spec.key: row count}`` for every registered model.
+
+    The sidebar and the dashboard both need this, so it is computed once per
+    request and cached on the request object by the context processor.
+    """
+    return {spec.key: spec.model._default_manager.count() for spec in REGISTRY}
+
+
+def request_counts(request) -> dict:
+    """Counts for this request, computed at most once."""
+    cached = getattr(request, '_cp_counts', None)
+    if cached is None:
+        cached = counts()
+        request._cp_counts = cached
+    return cached
+
+
+def totals(counts_by_key: dict = None) -> list:
+    """Row count per model, for the dashboard.
+
+    Pass the request's cached ``counts()`` to avoid re-running every COUNT.
+    """
+    by_key = counts_by_key if counts_by_key is not None else counts()
+    return [{'spec': spec, 'count': by_key.get(spec.key, 0)} for spec in REGISTRY]

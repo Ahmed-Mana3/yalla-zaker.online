@@ -321,8 +321,12 @@
         }
       }, 1000);
     } else if (status === 'paused') {
-      var pausedAt = new Date(ring.getAttribute('data-paused-at')).getTime();
+      var pausedRaw = ring.getAttribute('data-paused-at');
+      var pausedAt = pausedRaw ? new Date(pausedRaw).getTime() : NaN;
       var maxBreak = (parseInt(ring.getAttribute('data-max-break') || '30', 10) || 30) * 60;
+      // Without a usable break start the countdown reads 0 and the dashboard
+      // would reload itself forever — wait for the next request instead.
+      if (!pausedAt || isNaN(pausedAt)) return;
       setInterval(function () {
         var left = Math.max(0, maxBreak - (Date.now() - pausedAt) / 1000);
         if (left === 0) { window.location.reload(); return; }
@@ -501,7 +505,12 @@
     var status = lamp.dataset.status;
     if (!status || status === 'none') return;
 
-    var pausedAt = lamp.dataset.pausedAt ? new Date(lamp.dataset.pausedAt).getTime() : null;
+    /* Break start exactly as rendered by the server. Kept apart from pausedAt,
+       which the 4s sync rebases onto the server's break_left, so a skewed (or
+       plain wrong) local clock can never zero the countdown and end a session. */
+    var renderedPausedAt = lamp.dataset.pausedAt ? new Date(lamp.dataset.pausedAt).getTime() : null;
+    if (!renderedPausedAt || isNaN(renderedPausedAt)) renderedPausedAt = null;
+    var pausedAt = renderedPausedAt;
     var maxBreak = (parseInt(lamp.dataset.maxBreak || '30', 10) || 30) * 60;
     var badgeTime = document.getElementById('break-badge-time');
     var targetMin = parseInt(lamp.dataset.target || '0', 10) || 0;
@@ -528,6 +537,7 @@
 
     var endForm = document.getElementById('form-end');
     var goalPct = document.getElementById('goal-pct');
+    var done = false;
 
     function render() {
       var now = Date.now();
@@ -541,7 +551,7 @@
               hasChimed = true;
               playChime();
             }
-            if (endForm) endForm.submit();
+            if (!done && endForm) { done = true; endForm.submit(); }
             return;
           }
           elapsedEl.textContent = fmt(Math.ceil(remaining));
@@ -555,6 +565,13 @@
           setArc(0);
         }
       } else if (status === 'paused') {
+        if (!pausedAt) {
+          /* No usable break start — never guess from it: a bogus value here
+             would read 00:00 and end the session on the spot. The 4s sync
+             below rebases the clock or reloads the page. */
+          if (labelEl) labelEl.textContent = 'Break time';
+          return;
+        }
         var leftSec = Math.max(0, (maxBreak * 1000 - (now - pausedAt)) / 1000);
         elapsedEl.textContent = fmt(leftSec);
         if (badgeTime) badgeTime.textContent = fmt(Math.ceil(leftSec));
@@ -562,7 +579,7 @@
         setArc(leftSec / maxBreak);
         lamp.classList.toggle('is-tight', leftSec <= 300);
         if (leftSec <= 0) {
-          if (endForm) endForm.submit();
+          if (!done && endForm) { done = true; endForm.submit(); }
           return;
         }
       }
@@ -583,13 +600,21 @@
               return;
             }
             var s = data.session;
-            if (s.id !== lamp.dataset.id) window.location.reload();
-            if (s.status === 'paused' && (!pausedAt || new Date(s.paused_at).getTime() !== pausedAt)) {
-              window.location.reload();
-            }
-            if (s.status === 'finished') window.location.reload();
-            if (s.status !== status) window.location.reload();
-            if (status === 'active' && typeof s.elapsed === 'number') {
+            if (String(s.id) !== lamp.dataset.id) { window.location.reload(); return; }
+            if (s.status === 'finished' || s.status !== status) { window.location.reload(); return; }
+            if (s.status === 'paused') {
+              var serverPausedAt = s.paused_at ? new Date(s.paused_at).getTime() : null;
+              /* Tolerance keeps microsecond formatting differences between the
+                 page and the JSON from turning into a reload loop. */
+              var mismatch = serverPausedAt === null
+                ? renderedPausedAt !== null
+                : (renderedPausedAt === null || Math.abs(serverPausedAt - renderedPausedAt) > 2000);
+              if (mismatch) { window.location.reload(); return; }
+              /* Trust the server's remaining break time over the local clock. */
+              if (typeof s.break_left === 'number') {
+                pausedAt = Date.now() - (maxBreak - s.break_left) * 1000;
+              }
+            } else if (status === 'active' && typeof s.elapsed === 'number') {
               baseAt = Date.now();
               baseElapsed = s.elapsed;
             }

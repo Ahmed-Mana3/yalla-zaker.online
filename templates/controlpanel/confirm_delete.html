@@ -14,11 +14,18 @@
   {% if cascade %}
   <div class="cp-danger-head">
     <span class="cp-danger-dot" aria-hidden="true"></span>
-    <strong>This cascades.</strong>
+    <strong>{% if bulk %}This cascades across the selection.{% else %}This cascades.{% endif %}</strong>
   </div>
   <ul class="cp-danger-list">
     {% for item in cascade %}
-    <li><span class="cp-danger-num mono">{{ item.count }}</span> {{ item.label }} will be deleted with it.</li>
+    <li>
+      <span class="cp-danger-num mono">{{ item.count }}</span>
+      {% if item.deletes %}
+      {{ item.label }} will be deleted with it.
+      {% else %}
+      {{ item.label }} will survive, but lose the link to this record.
+      {% endif %}
+    </li>
     {% endfor %}
   </ul>
   {% if spec.danger %}<p class="cp-danger-note">{{ spec.danger }}</p>{% endif %}
@@ -41,11 +48,12 @@
     {% for item in objects %}<input type="hidden" name="pks" value="{{ item.pk }}">{% endfor %}
     <input type="hidden" name="confirmed" value="1">
   {% endif %}
+  {% for key, value in list_params.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
   <div class="form-actions">
     <button class="btn btn-danger" type="submit">
       {% if bulk %}Yes, delete {{ count_label }}{% else %}Yes, delete it{% endif %}
     </button>
-    <a class="btn btn-ghost" href="{% url 'controlpanel:records' spec.key %}">Keep everything</a>
+    <a class="btn btn-ghost" href="{% url 'controlpanel:records' spec.key %}{% if term %}?q={{ term|urlencode }}{% endif %}">Keep everything</a>
   </div>
 </form>
 
