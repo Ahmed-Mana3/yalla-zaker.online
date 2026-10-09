@@ -139,7 +139,8 @@
          data-elapsed="{{ session.study_seconds }}"
          data-target="{{ session.target_minutes|default:'' }}"
          data-course="{{ session.course.title|default:'Free focus' }}"
-         data-api="{% url 'session_state_api' %}">
+         data-api="{% url 'session_state_api' %}"
+         data-server-now="{% now 'c' %}">
     {% elif session.status == 'paused' %}
     <div class="lamp is-paused"
          data-status="paused"
@@ -147,7 +148,8 @@
          data-started="{{ session.started_at|date:'c' }}"
          data-paused-at="{{ session.open_break.started_at|date:'c' }}"
          data-max-break="{{ max_break_minutes }}"
-         data-api="{% url 'session_state_api' %}">
+         data-api="{% url 'session_state_api' %}"
+         data-server-now="{% now 'c' %}">
     {% endif %}
       <div class="lamp-inner">
         <svg class="ring" viewBox="0 0 200 200" aria-hidden="true">

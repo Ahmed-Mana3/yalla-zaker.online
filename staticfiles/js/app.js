@@ -321,8 +321,10 @@
         }
       }, 1000);
     } else if (status === 'paused') {
+      var serverNowRaw = ring.getAttribute('data-server-now');
+      var clientServerOffset = serverNowRaw ? (Date.now() - new Date(serverNowRaw).getTime()) : 0;
       var pausedRaw = ring.getAttribute('data-paused-at');
-      var pausedAt = pausedRaw ? new Date(pausedRaw).getTime() : NaN;
+      var pausedAt = pausedRaw ? (new Date(pausedRaw).getTime() + clientServerOffset) : NaN;
       var maxBreak = (parseInt(ring.getAttribute('data-max-break') || '30', 10) || 30) * 60;
       // Without a usable break start the countdown reads 0 and the dashboard
       // would reload itself forever — wait for the next request instead.
@@ -335,74 +337,6 @@
     }
   }
   initDeskRing();
-
-  /* ---------- topbar focus indicator (visible site-wide) ---------- */
-  function initFocusIndicator() {
-    var pill = document.getElementById('focus-indicator');
-    if (!pill) return;
-    var api = pill.getAttribute('data-api');
-    var timeEl = document.getElementById('focus-indicator-time');
-    var labelEl = document.getElementById('focus-indicator-label');
-    if (!api || !timeEl || !labelEl) return;
-
-    var state = null;
-    var clockBase = 0;
-    var clockAt = 0;
-
-    function tick() {
-      if (!state) return;
-      var now = (Date.now() - clockAt) / 1000;
-      var text;
-      if (state.status === 'active') {
-        var elapsed = clockBase + now;
-        var target = parseInt(state.target || '0', 10) || 0;
-        if (target > 0) {
-          text = fmt(Math.max(0, Math.ceil(target * 60 - elapsed)));
-        } else {
-          text = fmt(Math.floor(elapsed));
-        }
-        labelEl.textContent = state.course || 'Focus';
-      } else {
-        var left = Math.max(0, clockBase - now);
-        text = fmt(Math.ceil(left));
-        labelEl.textContent = 'On break';
-      }
-      timeEl.textContent = text;
-    }
-
-    function show(s) {
-      state = s;
-      if (s.status === 'paused') {
-        clockBase = parseInt(s.break_left != null ? s.break_left : 0, 10);
-      } else {
-        clockBase = parseInt(s.elapsed || '0', 10);
-      }
-      clockAt = Date.now();
-      pill.hidden = false;
-      pill.classList.toggle('fi-break', s.status === 'paused');
-      tick();
-    }
-
-    function hide() {
-      state = null;
-      pill.hidden = true;
-    }
-
-    function poll() {
-      fetch(api, { headers: { 'Accept': 'application/json' } })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (!data.session || data.session.status === 'finished') { hide(); return; }
-          show(data.session);
-        })
-        .catch(function () { /* offline */ });
-    }
-
-    poll();
-    setInterval(tick, 1000);
-    setInterval(poll, 10000);
-  }
-  initFocusIndicator();
 
   /* ---------- Web Audio Chime ---------- */
   function playChime() {
@@ -508,7 +442,9 @@
     /* Break start exactly as rendered by the server. Kept apart from pausedAt,
        which the 4s sync rebases onto the server's break_left, so a skewed (or
        plain wrong) local clock can never zero the countdown and end a session. */
-    var renderedPausedAt = lamp.dataset.pausedAt ? new Date(lamp.dataset.pausedAt).getTime() : null;
+    var serverNowRaw = lamp.dataset.serverNow;
+    var clientServerOffset = serverNowRaw ? (Date.now() - new Date(serverNowRaw).getTime()) : 0;
+    var renderedPausedAt = lamp.dataset.pausedAt ? (new Date(lamp.dataset.pausedAt).getTime() + clientServerOffset) : null;
     if (!renderedPausedAt || isNaN(renderedPausedAt)) renderedPausedAt = null;
     var pausedAt = renderedPausedAt;
     var maxBreak = (parseInt(lamp.dataset.maxBreak || '30', 10) || 30) * 60;
@@ -539,6 +475,21 @@
     var goalPct = document.getElementById('goal-pct');
     var done = false;
 
+    /* ring fill fraction at this instant (null when the lamp shows no arc) */
+    function arcFraction() {
+      if (status === 'active') {
+        if (!targetMin) return 0;
+        var elapsed = baseElapsed + (Date.now() - baseAt) / 1000;
+        return (targetMin * 60 - elapsed) / (targetMin * 60);
+      }
+      if (status === 'paused') {
+        if (!pausedAt) return null;
+        var leftSec = (maxBreak * 1000 - (Date.now() - pausedAt)) / 1000;
+        return leftSec / maxBreak;
+      }
+      return null;
+    }
+
     function render() {
       var now = Date.now();
       if (status === 'active') {
@@ -547,6 +498,9 @@
           var remaining = targetMin * 60 - elapsed;
           if (remaining <= 0) {
             elapsedEl.textContent = '00:00';
+            if (labelEl) labelEl.textContent = 'Time left';
+            if (goalPct) goalPct.textContent = '100%';
+            lamp.classList.remove('is-tight');
             if (!hasChimed) {
               hasChimed = true;
               playChime();
@@ -557,12 +511,10 @@
           elapsedEl.textContent = fmt(Math.ceil(remaining));
           if (labelEl) labelEl.textContent = 'Time left';
           if (goalPct) goalPct.textContent = Math.min(99, Math.max(0, Math.floor(elapsed / (targetMin * 60) * 100))) + '%';
-          setArc(remaining / (targetMin * 60));
           lamp.classList.toggle('is-tight', remaining <= 120);
         } else {
           elapsedEl.textContent = fmt(elapsed);
           if (labelEl) labelEl.textContent = 'Free focus';
-          setArc(0);
         }
       } else if (status === 'paused') {
         if (!pausedAt) {
@@ -576,17 +528,27 @@
         elapsedEl.textContent = fmt(leftSec);
         if (badgeTime) badgeTime.textContent = fmt(Math.ceil(leftSec));
         if (labelEl) labelEl.textContent = 'Break time';
-        setArc(leftSec / maxBreak);
         lamp.classList.toggle('is-tight', leftSec <= 300);
         if (leftSec <= 0) {
           if (!done && endForm) { done = true; endForm.submit(); }
-          return;
         }
       }
     }
 
     render();
-    var ticker = setInterval(render, 1000);
+    setInterval(render, 1000);
+
+    /* Smooth ring: repaint the arc every animation frame so it glides instead
+       of stepping once a second. Text/completion stay on the 1s interval above
+       so the session still ends on time in a background tab. */
+    if (fgCircle) {
+      (function animateRing() {
+        if (done) return;
+        var f = arcFraction();
+        if (f !== null) setArc(f);
+        requestAnimationFrame(animateRing);
+      })();
+    }
 
     /* ---------- sync with the server every 4s ---------- */
     var api = lamp.dataset.api;
@@ -626,94 +588,6 @@
 
   var lamps = document.querySelectorAll('.lamp');
   Array.prototype.forEach.call(lamps, startLamp);
-
-  /* ---------- Focus Toolbar & Shortcuts ---------- */
-  var zenBtn = document.getElementById('btn-zen');
-  if (zenBtn) {
-    var zenLabel = document.getElementById('zen-label');
-    var zenIconExpand = document.getElementById('zen-icon-expand');
-    var zenIconCollapse = document.getElementById('zen-icon-collapse');
-    function isFullscreen() {
-      return !!(document.fullscreenElement ||
-                document.webkitFullscreenElement ||
-                document.msFullscreenElement);
-    }
-    function setZenUi(on) {
-      document.body.classList.toggle('is-zen', on);
-      if (zenLabel) zenLabel.textContent = on ? 'Minimize' : 'Maximize';
-      if (zenIconExpand) zenIconExpand.hidden = on;
-      if (zenIconCollapse) zenIconCollapse.hidden = !on;
-      zenBtn.setAttribute('title', on ? 'Exit fullscreen (F)' : 'Maximize timer (F)');
-    }
-    function requestMaximize() {
-      var el = document.documentElement;
-      var req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-      if (req) {
-        var p = req.call(el);
-        if (p && p.catch) {
-          p.catch(function () { setZenUi(false); });
-        }
-      } else {
-        setZenUi(true);
-      }
-    }
-    function exitMaximize() {
-      var ex = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
-      if (ex) ex.call(document);
-      setZenUi(false);
-    }
-    var onFullscreenChange = function () {
-      setZenUi(isFullscreen());
-    };
-    zenBtn.addEventListener('click', function () {
-      if (isFullscreen()) exitMaximize();
-      else requestMaximize();
-    });
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
-    document.addEventListener('msfullscreenchange', onFullscreenChange);
-  }
-
-  var soundBtn = document.getElementById('btn-sound');
-  var soundLabel = document.getElementById('sound-label');
-  if (soundBtn) {
-    var refreshSoundUi = function () {
-      var muted = localStorage.getItem('yz_chime_muted') === 'true';
-      if (soundLabel) soundLabel.textContent = muted ? 'Chime off' : 'Chime on';
-      soundBtn.classList.toggle('is-muted', muted);
-    };
-    refreshSoundUi();
-    soundBtn.addEventListener('click', function () {
-      var muted = localStorage.getItem('yz_chime_muted') === 'true';
-      localStorage.setItem('yz_chime_muted', (!muted).toString());
-      refreshSoundUi();
-      if (muted) playChime();
-    });
-  }
-
-  /* Global focus hotkeys */
-  document.addEventListener('keydown', function (e) {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
-    if (e.key === ' ' || e.code === 'Space') {
-      var pauseBtn = document.getElementById('btn-pause');
-      var resumeBtn = document.getElementById('btn-resume');
-      if (pauseBtn) { e.preventDefault(); pauseBtn.click(); }
-      else if (resumeBtn) { e.preventDefault(); resumeBtn.click(); }
-    } else if (e.key === 'Escape') {
-      // In fullscreen, Esc is reserved for exiting the maximized timer (browser
-      // consumes it first), so don't treat it as "end session".
-      if (document.fullscreenElement || document.webkitFullscreenElement ||
-          document.body.classList.contains('is-zen')) return;
-      var endBtn = document.getElementById('btn-end');
-      if (endBtn) {
-        if (confirm('End this study session and record your progress?')) {
-          endBtn.click();
-        }
-      }
-    } else if (e.key === 'f' || e.key === 'F') {
-      if (zenBtn) zenBtn.click();
-    }
-  });
 
   /* ---------- Check-in: simple minutes input with live course impact ---------- */
   function initCheckin() {

@@ -321,8 +321,10 @@
         }
       }, 1000);
     } else if (status === 'paused') {
+      var serverNowRaw = ring.getAttribute('data-server-now');
+      var clientServerOffset = serverNowRaw ? (Date.now() - new Date(serverNowRaw).getTime()) : 0;
       var pausedRaw = ring.getAttribute('data-paused-at');
-      var pausedAt = pausedRaw ? new Date(pausedRaw).getTime() : NaN;
+      var pausedAt = pausedRaw ? (new Date(pausedRaw).getTime() + clientServerOffset) : NaN;
       var maxBreak = (parseInt(ring.getAttribute('data-max-break') || '30', 10) || 30) * 60;
       // Without a usable break start the countdown reads 0 and the dashboard
       // would reload itself forever — wait for the next request instead.
@@ -440,7 +442,9 @@
     /* Break start exactly as rendered by the server. Kept apart from pausedAt,
        which the 4s sync rebases onto the server's break_left, so a skewed (or
        plain wrong) local clock can never zero the countdown and end a session. */
-    var renderedPausedAt = lamp.dataset.pausedAt ? new Date(lamp.dataset.pausedAt).getTime() : null;
+    var serverNowRaw = lamp.dataset.serverNow;
+    var clientServerOffset = serverNowRaw ? (Date.now() - new Date(serverNowRaw).getTime()) : 0;
+    var renderedPausedAt = lamp.dataset.pausedAt ? (new Date(lamp.dataset.pausedAt).getTime() + clientServerOffset) : null;
     if (!renderedPausedAt || isNaN(renderedPausedAt)) renderedPausedAt = null;
     var pausedAt = renderedPausedAt;
     var maxBreak = (parseInt(lamp.dataset.maxBreak || '30', 10) || 30) * 60;

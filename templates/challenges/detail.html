@@ -22,8 +22,8 @@
           <span class="lb-rank">{{ forloop.counter }}</span>
           {% include 'partials/avatar.html' with u=user size=30 %}
           <a href="{% url 'profile' username=user.username %}">{{ user.username }}</a>
-          <span class="lb-total">{{ total|dur }} total</span>
           <span class="lb-time">{{ longest|dur }}</span>
+          <span class="lb-total">{{ total|dur }} total</span>
         </li>
         {% endfor %}
       </ol>
@@ -47,8 +47,8 @@
         {% if request.user.is_authenticated %}
           {% if is_member %}
             {% if me %}
-            <p><strong>Your best:</strong> <span class="mono">{{ me.longest_seconds|dur }}</span>
-              <span class="section-meta">· {{ me.total_seconds|dur }} total</span></p>
+            <p><strong>Your total:</strong> <span class="mono">{{ me.total_seconds|dur }}</span>
+              <span class="section-meta">· {{ me.longest_seconds|dur }} best session</span></p>
             {% endif %}
             <a class="btn btn-primary" href="{% url 'study' %}">Study something</a>
           {% else %}
