@@ -71,5 +71,5 @@ class ChallengeMember(models.Model):
         for member in challenge.members.select_related('user').prefetch_related('user__study_sessions'):
             stats = ChallengeMember.member_stats(member.user, challenge)
             rows.append((member.user, stats['longest_seconds'], stats['total_seconds']))
-        rows.sort(key=lambda r: (-r[1], -r[2], r[0].username))
+        rows.sort(key=lambda r: (-r[2], -r[1], r[0].username))
         return rows
