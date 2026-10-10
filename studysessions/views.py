@@ -124,7 +124,7 @@ def session_pause(request):
     if session is None:
         messages.warning(request, 'There is no running session to pause.')
     elif session.pause():
-        messages.info(request, f'Break starts now. You have {settings.MAX_BREAK_MINUTES} minutes — then the session dies.')
+        messages.info(request, f'Break starts now. You have {settings.MAX_BREAK_MINUTES} minutes — resume before then or the session ends.')
     elif session.status == StudySession.STATUS_PAUSED:
         messages.info(request, 'You are already on a break.')
     else:
@@ -157,6 +157,23 @@ def session_end(request):
     if request.method != 'POST':
         return redirect('study')
     session = _current(request)
+    auto = request.POST.get('auto')
+    if _is_live(session) and auto in ('break', 'target'):
+        # Sent by the on-screen timer. Only honour it when the server's own
+        # clock agrees (small tolerance for latency); otherwise this tab is
+        # stale (e.g. the session was resumed in another tab) and must not
+        # end a session that is still running.
+        left = session.seconds_until_expiry()
+        if left is None or left > 10:
+            messages.info(request, 'Your session is still running.')
+            return redirect('study')
+        session.expired_reason = auto
+        session.finish()
+        _announce_expiry(request, session)
+        if session.course_id is None:
+            session.checked_in = True
+            session.save()
+        return redirect('study')
     if _is_live(session):
         has_course = bool(session.course)
         session.finish()

@@ -36,6 +36,33 @@ class TakeBreakTests(TestCase):
         br.save()
         return br
 
+    # ------------------------------------------------------ timer auto-end
+
+    def test_stale_timer_cannot_end_running_break(self):
+        session = self.start_session()
+        self.client.post(reverse('session_pause'))
+        self.client.post(reverse('session_end'), {'auto': 'break'})
+        session.refresh_from_db()
+        self.assertEqual(session.status, StudySession.STATUS_PAUSED)
+
+    def test_timer_ends_expired_break_with_message(self):
+        session = self.start_session()
+        self.client.post(reverse('session_pause'))
+        br = session.break_segments.get(ended_at__isnull=True)
+        br.started_at = timezone.now() - dt.timedelta(minutes=settings.MAX_BREAK_MINUTES, seconds=-3)
+        br.save()
+        response = self.client.post(reverse('session_end'), {'auto': 'break'}, follow=True)
+        session.refresh_from_db()
+        self.assertEqual(session.status, StudySession.STATUS_FINISHED)
+        self.assertContains(response, 'break lasted too long')
+
+    def test_finish_is_idempotent(self):
+        session = self.start_session()
+        session.finish()
+        first_end = StudySession.objects.get(pk=session.pk).ended_at
+        StudySession.objects.get(pk=session.pk).finish()
+        self.assertEqual(StudySession.objects.get(pk=session.pk).ended_at, first_end)
+
     # ----------------------------------------------------------- transitions
 
     def test_take_break_pauses_and_resumes(self):

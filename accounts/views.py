@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.contrib import messages
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -166,6 +168,27 @@ def profile_view(request, username):
         total_seconds = 0
         today_seconds = 0
 
+    # Last 7 days of focus time (oldest first) for the week chart.
+    week = []
+    if can_see_stats:
+        today_d = timezone.now().date()
+        days = [today_d - timedelta(days=i) for i in range(6, -1, -1)]
+        per_day = {d: 0 for d in days}
+        for s in finished.filter(started_at__date__gte=days[0]):
+            d = s.started_at.date()
+            if d in per_day:
+                per_day[d] += s.duration_seconds
+        peak = max(per_day.values()) or 1
+        for d in days:
+            secs = per_day[d]
+            week.append({
+                'label': d.strftime('%a'),
+                'seconds': secs,
+                'pct': max(6, round(secs / peak * 100)) if secs else 0,
+                'is_today': d == today_d,
+            })
+    week_total = sum(w['seconds'] for w in week)
+
     courses = Course.objects.filter(owner=user)
     if not can_see_stats:
         courses = courses.filter(is_public=True)
@@ -182,6 +205,8 @@ def profile_view(request, username):
         'can_see_stats': can_see_stats,
         'total_seconds': total_seconds,
         'today_seconds': today_seconds,
+        'week': week,
+        'week_total': week_total,
     }
     return render(request, 'accounts/profile.html', ctx)
 

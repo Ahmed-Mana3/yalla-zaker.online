@@ -475,6 +475,15 @@
     var goalPct = document.getElementById('goal-pct');
     var done = false;
 
+    /* Timer ran out locally: tell the server why. It only honours this if its
+       own clock agrees, so a stale tab can never end a session that was
+       resumed elsewhere. */
+    function autoEnd(reason) {
+      var f = document.getElementById('auto-end');
+      if (f) f.value = reason;
+      endForm.submit();
+    }
+
     /* ring fill fraction at this instant (null when the lamp shows no arc) */
     function arcFraction() {
       if (status === 'active') {
@@ -505,7 +514,7 @@
               hasChimed = true;
               playChime();
             }
-            if (!done && endForm) { done = true; endForm.submit(); }
+            if (!done && endForm) { done = true; autoEnd('target'); }
             return;
           }
           elapsedEl.textContent = fmt(Math.ceil(remaining));
@@ -530,7 +539,7 @@
         if (labelEl) labelEl.textContent = 'Break time';
         lamp.classList.toggle('is-tight', leftSec <= 300);
         if (leftSec <= 0) {
-          if (!done && endForm) { done = true; endForm.submit(); }
+          if (!done && endForm) { done = true; autoEnd('break'); }
         }
       }
     }

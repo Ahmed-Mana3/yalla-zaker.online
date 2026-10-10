@@ -1,4 +1,4 @@
-import datetime as dt
+﻿import datetime as dt
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -73,7 +73,7 @@ class OnlineStatusTests(TestCase):
     def test_profile_page_offline_tag(self):
         self.client.force_login(self.alice)
         response = self.client.get(f'/users/{self.bob.username}/')
-        self.assertContains(response, '<span class="tag">offline</span>')
+        self.assertContains(response, 'data-state="offline"')
 
     def test_profile_page_does_not_show_start_studying_button(self):
         Course.objects.create(owner=self.bob, title='Bob Public Course', total_hours=10, is_public=True)
@@ -145,8 +145,8 @@ class FriendProfileStatsTests(TestCase):
         self.client.force_login(self.alice)
         response = self.client.get(f'/users/{self.bob.username}/')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, '>1h 0m</span>')
-        self.assertContains(response, 'total study time')
+        self.assertContains(response, '<dd>1h 0m</dd>')
+        self.assertContains(response, 'All time')
         self.assertContains(response, 'Physics')
         self.assertContains(response, '2.5h done / 10h course')
         self.assertContains(response, 'Courses')
@@ -166,7 +166,7 @@ class FriendProfileStatsTests(TestCase):
         self.client.force_login(self.carol)
         response = self.client.get(f'/users/{self.bob.username}/')
         self.assertContains(response, 'Open Course')
-        self.assertNotContains(response, 'total study time')
+        self.assertNotContains(response, 'All time')
         self.assertNotContains(response, 'Secret Prep')
 
     def test_own_profile_shows_stats(self):
@@ -175,7 +175,7 @@ class FriendProfileStatsTests(TestCase):
         self.client.force_login(self.alice)
         response = self.client.get(f'/users/{self.alice.username}/')
         self.assertContains(response, '1h 30m')
-        self.assertContains(response, 'total study time')
+        self.assertContains(response, 'All time')
 
 
 class SeoTests(TestCase):

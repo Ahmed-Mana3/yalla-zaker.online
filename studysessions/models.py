@@ -1,7 +1,7 @@
 import datetime as dt
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Sum
 from django.utils import timezone
 
@@ -140,6 +140,22 @@ class StudySession(models.Model):
         return self
 
 
+    def seconds_until_expiry(self):
+        """Seconds until the timer for the current state ends the session.
+
+        Break while paused, focus target while active. None when there is no
+        running timer (free focus) or the session is finished.
+        """
+        if self.status == self.STATUS_PAUSED:
+            br = self._open_break()
+            if not br:
+                return None
+            end = br.started_at + dt.timedelta(minutes=settings.MAX_BREAK_MINUTES)
+            return (end - timezone.now()).total_seconds()
+        if self.status == self.STATUS_ACTIVE and self.target_minutes:
+            return self.target_minutes * 60 - self.study_seconds()
+        return None
+
     def pause(self):
         """Take a break: close the study segment and open a break segment."""
         if self.status != self.STATUS_ACTIVE:
@@ -195,6 +211,20 @@ class StudySession(models.Model):
     def finish(self, force=False):
         if self.status == self.STATUS_FINISHED:
             return
+        if self.pk:
+            # Re-check under a row lock so two simultaneous requests (poll +
+            # form submit, two tabs) cannot both finish the session.
+            with transaction.atomic():
+                state = StudySession.objects.select_for_update().filter(pk=self.pk).values_list(
+                    'status', flat=True).first()
+                if state == self.STATUS_FINISHED:
+                    self.refresh_from_db()
+                    return
+                self._do_finish()
+            return
+        self._do_finish()
+
+    def _do_finish(self):
         now = timezone.now()
         # Close *every* open segment: an orphaned one would keep counting time
         # on a finished session (and would make the next session look expired).

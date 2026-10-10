@@ -4,76 +4,104 @@
 {% block meta_description %}{{ subject.username }}'s public study desk on yalla zaker — shared courses, progress, and presence on the desk.{% endblock %}
 {% block body %}
 <div class="wrap page profile-page">
-  <div class="panel profile-head">
-    {% include 'partials/avatar.html' with u=subject size=72 %}
-    <div class="grow">
-      <h1>{{ subject.username }}</h1>
-      <p class="section-meta">
+
+  {# ---------- identity: the avatar wears the lamp ---------- #}
+  <header class="pf-hero" style="--hue: {{ profile.avatar_hue|default:210 }};"
+          data-state="{% if live %}{{ live.status }}{% elif is_online %}online{% else %}offline{% endif %}">
+    <div class="pf-lampwrap">
+      {% include 'partials/avatar.html' with u=subject size=96 %}
+    </div>
+
+    <div class="pf-id">
+      <h1 class="pf-name">{{ subject.username }}</h1>
+      <p class="pf-status" role="status">
+        <span class="pf-dot" aria-hidden="true"></span>
         {% if live %}
-          <span class="tag tag-live">{% if live.status == 'active' %}studying now{% else %}on a break{% endif %}</span>
-          {% if live.course %} · {{ live.course.title }}{% endif %}
+          {% if live.status == 'active' %}Studying now{% else %}On a break{% endif %}{% if live.course %} <span class="pf-sep">·</span> <span class="pf-course">{{ live.course.title }}</span>{% endif %}
         {% elif is_online %}
-          <span class="tag tag-online">online · not studying</span>
+          Online, not studying
         {% else %}
-          <span class="tag">offline</span>
+          Offline
         {% endif %}
       </p>
+      <p class="pf-since">Joined {{ subject.date_joined|date:'F Y' }}</p>
     </div>
+
     {% if is_self %}
-      <a class="btn btn-ghost btn-sm" href="{% url 'profile_edit' %}">Edit profile</a>
+      <a class="btn btn-ghost pf-edit" href="{% url 'profile_edit' %}">Edit profile</a>
     {% endif %}
-  </div>
 
-  {% if profile.bio %}
-  <div class="panel">
-    <p style="margin:0">{{ profile.bio }}</p>
-  </div>
-  {% endif %}
+    {% if profile.bio %}
+      <p class="pf-bio">{{ profile.bio }}</p>
+    {% elif is_self %}
+      <p class="pf-bio pf-bio-empty">Add a short bio so friends know what you're studying. <a href="{% url 'profile_edit' %}">Write one</a></p>
+    {% endif %}
+  </header>
 
+  {# ---------- stats (owner + friends only) ---------- #}
   {% if can_see_stats %}
-  <div class="panel">
-    <div class="panel-title"><h2>Study stats</h2></div>
-    <div class="stats">
-      <div class="stat">
-        <span class="num">{{ total_seconds|dur }}</span>
-        <span class="lab">total study time</span>
+  <section class="pf-stats" aria-labelledby="pf-stats-h">
+    <h2 id="pf-stats-h" class="pf-h">Study time</h2>
+    <dl class="pf-tiles">
+      <div class="pf-tile pf-tile-main">
+        <dt>All time</dt>
+        <dd>{{ total_seconds|dur }}</dd>
       </div>
-      <div class="stat">
-        <span class="num">{{ today_seconds|dur }}</span>
-        <span class="lab">today</span>
+      <div class="pf-tile">
+        <dt>Today</dt>
+        <dd>{{ today_seconds|dur }}</dd>
       </div>
-      <div class="stat">
-        <span class="num">{{ courses|length }}</span>
-        <span class="lab">course{{ courses|length|pluralize }}</span>
+      <div class="pf-tile">
+        <dt>Courses</dt>
+        <dd>{{ courses|length }}</dd>
       </div>
+    </dl>
+
+    <div class="pf-week" role="group" aria-label="Focus time over the last 7 days">
+      <div class="pf-week-head">
+        <span>Last 7 days</span>
+        <strong>{{ week_total|dur }}</strong>
+      </div>
+      <ol class="pf-bars">
+        {% for d in week %}
+        <li class="{% if d.is_today %}is-today{% endif %}{% if not d.seconds %} is-empty{% endif %}"
+            title="{{ d.label }}: {{ d.seconds|dur }}">
+          <span class="pf-bar"><i style="height: {{ d.pct }}%"></i></span>
+          <span class="pf-day">{{ d.label|slice:":1" }}<span class="sr-only">{{ d.label|slice:"1:" }}: {{ d.seconds|dur }}</span></span>
+        </li>
+        {% endfor %}
+      </ol>
     </div>
-  </div>
+  </section>
   {% endif %}
 
-  <div class="panel-title">
-    <h2>{% if is_friend %}Courses{% else %}Public courses{% endif %}</h2>
-    {% if is_self %}<span class="section-meta">only shareable courses are visible to others</span>
-    {% elif is_friend %}<span class="section-meta">progress on every course on {{ subject.username }}'s desk</span>{% endif %}
-  </div>
+  {# ---------- courses ---------- #}
+  <section aria-labelledby="pf-courses-h">
+    <div class="pf-courses-head">
+      <h2 id="pf-courses-h" class="pf-h">{% if can_see_stats %}Courses{% else %}Public courses{% endif %}</h2>
+      {% if is_self %}<span class="section-meta">Others only see courses you've made public.</span>
+      {% elif is_friend %}<span class="section-meta">Everything on {{ subject.username }}'s desk</span>{% endif %}
+    </div>
 
-  {% if courses %}
-  <div class="grid grid-col">
-    {% for course in courses %}
-    <div class="panel">{% include 'partials/course_card.html' with show_owner=True hide_study_button=True %}</div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="empty">
-    <strong>{% if is_friend %}Nothing on this desk yet.{% else %}Nothing public on this desk.{% endif %}</strong>
-    {% if is_self %}
-      <p>Courses you share by link show up here for friends.</p>
-      <a class="btn btn-primary" href="{% url 'course_create' %}">Add a course</a>
-    {% elif is_friend %}
-      <p>{{ subject.username }} hasn't added any courses.</p>
+    {% if courses %}
+    <div class="pf-grid">
+      {% for course in courses %}
+      <div class="panel">{% include 'partials/course_card.html' with show_owner=False hide_study_button=True %}</div>
+      {% endfor %}
+    </div>
     {% else %}
-      <p>This user hasn't shared any courses.</p>
+    <div class="empty">
+      <strong>{% if is_friend or is_self %}Nothing on this desk yet.{% else %}Nothing public on this desk.{% endif %}</strong>
+      {% if is_self %}
+        <p>Add a course to track your progress here.</p>
+        <a class="btn btn-primary" href="{% url 'course_create' %}">Add a course</a>
+      {% elif is_friend %}
+        <p>{{ subject.username }} hasn't added any courses.</p>
+      {% else %}
+        <p>{{ subject.username }} hasn't made any courses public.</p>
+      {% endif %}
+    </div>
     {% endif %}
-  </div>
-  {% endif %}
+  </section>
 </div>
 {% endblock %}
