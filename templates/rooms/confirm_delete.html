@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Delete {{ room.name }} · yalla zaker{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/rooms.css' %}">{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel form-card">
+    <h1>Delete “{{ room.name }}”?</h1>
+    <p class="section-meta">{{ room.member_count }} member{{ room.member_count|pluralize }} will lose access and the invite link stops working. Their study time is not affected.</p>
+    <form method="post" class="form-actions" style="margin-top:16px">
+      {% csrf_token %}
+      <button class="btn btn-danger" type="submit">Delete room</button>
+      <a class="btn btn-ghost" href="{% url 'room_detail' pk=room.pk %}">Keep it</a>
+    </form>
+    <p class="sr-hint">Just need quiet? <em>Lock</em> the room instead, so nobody new can join.</p>
+  </div>
+</div>
+{% endblock %}

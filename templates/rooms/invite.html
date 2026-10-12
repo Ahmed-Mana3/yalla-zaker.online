@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Join {{ room.name }} · yalla zaker{% endblock %}
+{% block robots %}noindex, nofollow, noarchive{% endblock %}
+{% block meta_description %}You’ve been invited to a study room on yalla zaker.{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/rooms.css' %}">{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel sr-invite">
+    <p class="sr-sub">{{ room.owner.username }} invited you to study together</p>
+    <h1>{{ room.name }}</h1>
+    {% include 'rooms/_badge.html' with room=room %}
+    {% if room.topic %}<p class="sr-sub" style="margin-top:10px">{{ room.topic }}</p>{% endif %}
+
+    <div class="sr-faces">
+      {% for u in faces %}{% include 'partials/avatar.html' with u=u size=36 %}{% endfor %}
+    </div>
+    <p class="sr-meta">
+      {{ summary.members }} of {{ room.capacity }} seats taken
+      {% if summary.studying %} · <span class="sr-live-chip"><span class="status-dot status-live"></span>{{ summary.studying }} studying now</span>{% endif %}
+    </p>
+
+    {% if block_message %}<div class="sr-note" role="alert">{{ block_message }}</div>{% endif %}
+
+    <div class="sr-actions">
+      {% if not request.user.is_authenticated %}
+        <a class="btn btn-primary btn-lg" href="{% url 'login' %}?next={{ next_url|urlencode }}">Log in to join</a>
+        <a class="btn btn-ghost" href="{% url 'signup' %}?next={{ next_url|urlencode }}">New here? Create a free account</a>
+      {% elif not block %}
+        <form method="post" action="{% url 'room_join' token=room.invite_token %}">{% csrf_token %}
+          <button class="btn btn-primary btn-lg" type="submit">Join this room</button>
+        </form>
+        <a class="btn btn-ghost" href="{% url 'rooms' %}">Not now</a>
+      {% else %}
+        {% if block == 'not_friend' %}<a class="btn btn-primary" href="{% url 'profile' username=room.owner.username %}">Visit {{ room.owner.username }}’s profile</a>
+        {% elif block == 'not_in_audience' %}<a class="btn btn-primary" href="{% url 'profile' username=room.owner.username %}">Visit {{ room.owner.username }}’s profile</a>{% if room.challenge %}<a class="btn btn-ghost" href="{% url 'challenge_detail' pk=room.challenge.pk %}">See the challenge</a>{% endif %}
+        {% elif block == 'not_in_challenge' and room.challenge %}<a class="btn btn-primary" href="{% url 'challenge_detail' pk=room.challenge.pk %}">See the challenge</a>{% endif %}
+        <a class="btn btn-ghost" href="{% url 'rooms' %}">Back to my rooms</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

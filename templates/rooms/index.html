@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Study rooms · yalla zaker{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/rooms.css' %}">{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel-title" style="margin-bottom:6px">
+    <div>
+      <h1>Study rooms</h1>
+      <p class="sr-sub">Study side by side. See who is focusing right now and keep each other going.</p>
+    </div>
+    <a class="btn btn-primary btn-sm" href="{% url 'room_create' %}">Create a room</a>
+  </div>
+
+  <div class="sr-join-strip">
+    <label for="room-code">Got an invite?</label>
+    <form method="post" action="{% url 'room_join_code' %}">{% csrf_token %}
+      <input id="room-code" name="code" type="text" placeholder="Paste the room link here" autocomplete="off" required>
+      <button class="btn btn-ghost btn-sm" type="submit">Find room</button>
+    </form>
+  </div>
+
+  <div class="sr-section-title"><h2>Your rooms</h2></div>
+  {% if mine %}
+  <div class="sr-cards">
+    {% for c in mine %}{% include 'rooms/_card.html' with c=c cta='Open' %}{% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">
+    <strong>You’re not in a room yet.</strong>
+    <p>Create one for your friends or a challenge, or share a private link with a study partner. Everyone sees who is studying live.</p>
+    <a class="btn btn-primary" href="{% url 'room_create' %}">Create your first room</a>
+  </div>
+  {% endif %}
+
+  <div class="sr-section-title"><h2>Open to you</h2><span class="meta">from your friends and challenges</span></div>
+  {% if discover %}
+  <div class="sr-cards">
+    {% for c in discover %}{% include 'rooms/_card.html' with c=c cta='Take a look' %}{% endfor %}
+  </div>
+  {% else %}
+  <p class="sr-sub">Nothing to join right now. When a friend or someone in your challenges opens a room, it shows up here.</p>
+  {% endif %}
+</div>
+{% endblock %}

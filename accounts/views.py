@@ -6,7 +6,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
+from urllib.parse import quote
 
 from challenges.models import Challenge, ChallengeMember
 from courses.models import Course
@@ -49,6 +52,10 @@ def signup(request):
     if request.method == 'POST' and form.is_valid():
         user = form.save()
         messages.success(request, f'Welcome aboard, {user.username}. Add your first course.')
+        # Keep an invite link alive through sign-up: log in, then land back on it.
+        target = request.GET.get('next', '')
+        if target and url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()}):
+            return redirect(f"{reverse('login')}?next={quote(target, safe='')}")
         return redirect('login')
     return render(request, 'accounts/auth.html', {'form': form, 'mode': 'signup'})
 

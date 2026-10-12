@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "courses",
     "studysessions",
     "challenges",
+    "rooms",
     "controlpanel",
 ]
 

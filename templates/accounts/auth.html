@@ -77,7 +77,7 @@
         </div>
         {% endif %}
 
-        <form method="post" action="{% url 'signup' %}" class="form-stack" id="signup-form" novalidate>
+        <form method="post" action="{% url 'signup' %}{% if request.GET.next %}?next={{ request.GET.next|urlencode }}{% endif %}" class="form-stack" id="signup-form" novalidate>
           {% csrf_token %}
 
           <div class="field">

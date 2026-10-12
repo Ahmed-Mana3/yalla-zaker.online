@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{% if editing %}Edit room{% else %}Create a room{% endif %} · yalla zaker{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/rooms.css' %}">{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="panel sr-form">
+    <a href="{% if editing %}{% url 'room_detail' pk=room.pk %}{% else %}{% url 'rooms' %}{% endif %}" class="section-meta">&larr; {% if editing %}Back to room{% else %}All rooms{% endif %}</a>
+    <h1 style="margin-top:6px">{% if editing %}Edit room{% else %}Create a study room{% endif %}</h1>
+    <p class="sr-sub">{% if editing %}Changes apply right away. People already inside stay inside.{% else %}Pick who can find it. You can change this later.{% endif %}</p>
+
+    <form method="post" class="form-stack sr-vis-form" style="margin-top:18px">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="field-errors">{{ form.non_field_errors }}</div>{% endif %}
+
+      <div class="field">
+        <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+        {{ form.name }}
+        {% if form.name.errors %}<div class="field-errors">{{ form.name.errors }}</div>{% endif %}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.topic.id_for_label }}">{{ form.topic.label }}</label>
+        {{ form.topic }}
+        {% if form.topic.errors %}<div class="field-errors">{{ form.topic.errors }}</div>{% endif %}
+      </div>
+
+      <fieldset class="sr-vis-options">
+        <legend>Who can join?</legend>
+        {% for radio in form.visibility %}
+        <label class="sr-vis-option" for="{{ radio.id_for_label }}">
+          {{ radio.tag }}
+          <span class="sr-vis-body">
+            <span class="sr-vis-icon">{% include 'rooms/_icon.html' with v=radio.data.value %}</span>
+            <span>
+              <strong>{{ radio.choice_label }}</strong>
+              <span class="sr-vis-desc">
+                {% if radio.data.value == 'friends' %}All your friends can see the room and join in one tap.
+                {% elif radio.data.value == 'challenge' %}Everyone in one of your running challenges can see the room and join.
+                {% elif radio.data.value == 'both' %}Your friends and the members of one of your running challenges can all see the room and join.
+                {% else %}Hidden from everyone. Only people you send the link to can join.{% endif %}
+              </span>
+            </span>
+          </span>
+        </label>
+        {% endfor %}
+        {% if form.visibility.errors %}<div class="field-errors">{{ form.visibility.errors }}</div>{% endif %}
+      </fieldset>
+
+      <div class="field sr-challenge-field">
+        <label for="{{ form.challenge.id_for_label }}">Which challenge?</label>
+        {{ form.challenge }}
+        {% if not form.fields.challenge.queryset.exists %}
+        <p class="help-text">You’re not in a running challenge yet. <a href="{% url 'challenges' %}">Join or start one</a> first.</p>
+        {% endif %}
+        {% if form.challenge.errors %}<div class="field-errors">{{ form.challenge.errors }}</div>{% endif %}
+      </div>
+
+      <div class="field" style="max-width:200px">
+        <label for="{{ form.capacity.id_for_label }}">{{ form.capacity.label }}</label>
+        {{ form.capacity }}
+        <p class="help-text">{{ form.capacity.help_text }}</p>
+        {% if form.capacity.errors %}<div class="field-errors">{{ form.capacity.errors }}</div>{% endif %}
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">{% if editing %}Save changes{% else %}Create room{% endif %}</button>
+        <a class="btn btn-ghost" href="{% if editing %}{% url 'room_detail' pk=room.pk %}{% else %}{% url 'rooms' %}{% endif %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

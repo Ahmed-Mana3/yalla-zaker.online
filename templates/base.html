@@ -57,10 +57,10 @@
       <nav class="mainnav" aria-label="Main">
         <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">Desk</a>
         <a href="{% url 'courses' %}" class="{% if request.resolver_match.url_name == 'courses' or request.resolver_match.url_name|slice:':7' == 'course_' %}is-active{% endif %}">Courses</a>
-        <a href="{% url 'roadmaps' %}" class="{% if request.resolver_match.url_name == 'roadmaps' or request.resolver_match.url_name|slice:':8' == 'roadmap_' %}is-active{% endif %}">Roadmaps</a>
         <a href="{% url 'study' %}" class="{% if request.resolver_match.namespace == 'study' or request.resolver_match.url_name == 'study' %}is-active{% endif %}">Study</a>
         <a href="{% url 'friends' %}" class="{% if request.resolver_match.url_name == 'friends' %}is-active{% endif %}">Friends</a>
         <a href="{% url 'challenges' %}" class="{% if request.resolver_match.url_name == 'challenges' or request.resolver_match.url_name|slice:':10' == 'challenge_' %}is-active{% endif %}">Challenges</a>
+        <a href="{% url 'rooms' %}" class="{% if request.resolver_match.url_name == 'rooms' or request.resolver_match.url_name|slice:':5' == 'room_' %}is-active{% endif %}">Rooms</a>
       </nav>
       <div class="topbar-right auth-topbar-right">
         <a class="user-chip" href="{% url 'profile' username=request.user.username %}">
@@ -76,10 +76,10 @@
     <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation">
       <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">Desk</a>
       <a href="{% url 'courses' %}" class="{% if request.resolver_match.url_name == 'courses' or request.resolver_match.url_name|slice:':7' == 'course_' %}is-active{% endif %}">Courses</a>
-      <a href="{% url 'roadmaps' %}" class="{% if request.resolver_match.url_name == 'roadmaps' or request.resolver_match.url_name|slice:':8' == 'roadmap_' %}is-active{% endif %}">Roadmaps</a>
       <a href="{% url 'study' %}" class="{% if request.resolver_match.namespace == 'study' or request.resolver_match.url_name == 'study' %}is-active{% endif %}">Study</a>
       <a href="{% url 'friends' %}" class="{% if request.resolver_match.url_name == 'friends' %}is-active{% endif %}">Friends</a>
       <a href="{% url 'challenges' %}" class="{% if request.resolver_match.url_name == 'challenges' or request.resolver_match.url_name|slice:':10' == 'challenge_' %}is-active{% endif %}">Challenges</a>
+      <a href="{% url 'rooms' %}" class="{% if request.resolver_match.url_name == 'rooms' or request.resolver_match.url_name|slice:':5' == 'room_' %}is-active{% endif %}">Rooms</a>
       <hr style="border: none; border-top: 1px solid var(--line); margin: 8px 0;" />
       <a href="{% url 'profile' username=request.user.username %}" style="display: flex; align-items: center; gap: 8px;">
         {% include 'partials/avatar.html' with u=request.user size=24 %}
@@ -151,6 +151,7 @@
         <a href="{% url 'courses' %}">Courses</a>
         <a href="{% url 'study' %}">Study</a>
         <a href="{% url 'friends' %}">Friends</a>
+        <a href="{% url 'rooms' %}">Rooms</a>
       </div>
       {% else %}
       <div class="footer-links">

@@ -1,0 +1,21 @@
+{% comment %}Room card. Usage: include with c=<card dict>, cta=<label or empty>.{% endcomment %}
+{% load studytags %}
+<article class="sr-card{% if c.studying %} is-live{% endif %}">
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+    {% include 'rooms/_badge.html' with room=c.room %}
+    {% if c.room.is_locked %}<span class="sr-badge sr-badge-lock">Locked</span>{% endif %}
+  </div>
+  <h3><a href="{% url 'room_detail' pk=c.room.pk %}">{{ c.room.name }}</a></h3>
+  {% if c.room.topic %}<p class="sr-topic">{{ c.room.topic }}</p>{% endif %}
+  <p class="sr-meta">Hosted by {{ c.room.owner.username }}{% if c.room.includes_challenge and c.room.challenge %} · {{ c.room.challenge.title }}{% endif %}</p>
+  <div class="sr-faces">
+    {% for u in c.faces %}{% include 'partials/avatar.html' with u=u size=30 %}{% endfor %}
+    <span class="sr-more">{{ c.members }}/{{ c.room.capacity }} seats</span>
+  </div>
+  <div class="sr-card-foot">
+    {% if c.studying %}<span class="sr-live-chip"><span class="status-dot status-live"></span>{{ c.studying }} studying now</span>
+    {% elif c.on_break %}<span class="sr-idle-chip">{{ c.on_break }} on a break</span>
+    {% else %}<span class="sr-idle-chip">Quiet right now</span>{% endif %}
+    {% if cta %}<a class="btn btn-primary btn-sm" href="{% url 'room_detail' pk=c.room.pk %}">{{ cta }}</a>{% endif %}
+  </div>
+</article>

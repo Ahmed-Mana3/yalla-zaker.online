@@ -1,0 +1,2 @@
+{% comment %}Audience badge. Usage: include with room=<Room>.{% endcomment %}
+<span class="sr-badge sr-badge-{{ room.visibility }}">{% include 'rooms/_icon.html' with v=room.visibility %}{% if room.visibility == 'friends' %}Friends{% elif room.visibility == 'challenge' %}Challenge{% elif room.visibility == 'both' %}Friends + challenge{% else %}Private link{% endif %}</span>

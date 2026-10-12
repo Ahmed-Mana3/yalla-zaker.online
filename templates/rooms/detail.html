@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% load static studytags %}
+{% block title %}{{ room.name }} · yalla zaker{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+{% block body_class %}sr-has-dock{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/rooms.css' %}">{% endblock %}
+{% block body %}
+<div class="wrap page">
+  <div class="sr-hero">
+    <a href="{% url 'rooms' %}" class="section-meta">&larr; All rooms</a>
+    <h1>{{ room.name }}</h1>
+    <div class="sr-hero-badges">
+      {% include 'rooms/_badge.html' with room=room %}
+      {% if room.is_locked %}<span class="sr-badge sr-badge-lock">Locked · no new members</span>{% endif %}
+      <span class="sr-meta">Hosted by {{ room.owner.username }} · visible to {{ room.audience_label }}</span>
+    </div>
+    {% if room.topic %}<p class="sr-sub" style="margin-top:8px">{{ room.topic }}</p>{% endif %}
+  </div>
+
+  <div class="grid grid-main{% if rows|length == 1 %} is-solo{% endif %}">
+    <section class="panel" id="room-live"
+             data-state-url="{% url 'room_state_api' pk=room.pk %}" data-range="{{ range_key }}"
+             data-members="{{ rows|length }}">
+      <div class="sr-stats" aria-label="Room summary">
+        <div class="sr-stat"><b data-sum="studying">{{ summary.studying }}</b><span>studying now</span></div>
+        <div class="sr-stat"><b data-sum="total">{{ summary.total_seconds|dur }}</b><span>{% if range_key == 'week' %}focused this week{% else %}focused today{% endif %}</span></div>
+        <div class="sr-stat"><b data-sum="members">{{ summary.members }}/{{ room.capacity }}</b><span>seats taken</span></div>
+      </div>
+
+      <div class="sr-toolbar">
+        <nav class="sr-tabs" aria-label="Time range">
+          {% for key, label in ranges %}<a href="?range={{ key }}" class="{% if key == range_key %}is-active{% endif %}" {% if key == range_key %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+        </nav>
+        <span class="sr-sync" id="sr-sync" role="status" aria-live="polite"><span class="status-dot status-live"></span><span id="sr-sync-text">Live</span></span>
+      </div>
+
+      <ol class="sr-list" id="sr-list">
+        {% for row in rows %}
+        <li class="sr-row{% if row.is_me %} is-me{% endif %}" data-username="{{ row.user.username }}" data-status="{{ row.status }}"
+            data-seconds="{{ row.seconds }}" {% if row.elapsed is not None %}data-elapsed="{{ row.elapsed }}"{% endif %}>
+          <span class="sr-rank" data-f="rank">{{ row.rank }}</span>
+          <span class="sr-avatar-wrap">{% include 'partials/avatar.html' with u=row.user size=36 %}<span class="status-dot status-{{ row.status }}" data-f="dot"></span></span>
+          <div class="sr-who">
+            <div class="sr-name">
+              <a href="{% url 'profile' username=row.user.username %}">{{ row.user.username }}</a>
+              {% if row.is_me %}<span class="sr-mini">you</span>{% endif %}
+              {% if row.is_owner %}<span class="sr-mini">host</span>{% endif %}
+            </div>
+            <div class="sr-goal" data-f="goal">{{ row.goal }}</div>
+            <div class="sr-state"><span data-f="label">{{ row.label }}</span><span class="sr-clock" data-f="clock">{% if row.elapsed is not None %}{{ row.elapsed|dur }}{% endif %}</span></div>
+          </div>
+          <div class="sr-total"><b data-f="total">{{ row.seconds|dur }}</b><small>{% if range_key == 'week' %}this week{% else %}today{% endif %}</small></div>
+          {% if is_owner and not row.is_owner %}
+          <div class="sr-row-actions">
+            <form method="post" action="{% url 'room_kick' pk=room.pk user_id=row.user.pk %}" onsubmit="return confirm('Remove {{ row.user.username|escapejs }} from this room? They will not be able to rejoin unless you allow it.');">{% csrf_token %}
+              <button class="linklike" type="submit">Remove</button>
+            </form>
+          </div>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+      {% if rows|length == 1 %}
+      <div class="empty" style="margin-top:14px">
+        <strong>It’s just you for now.</strong>
+        <p>Share the link on the right. As people join, you will see them study live.</p>
+      </div>
+      {% endif %}
+    </section>
+
+    <div class="sr-stack">
+      <div class="panel">
+        <div class="panel-title"><h2>Invite people</h2></div>
+        <div class="sr-invite-field">
+          <input id="sr-invite-url" type="text" readonly value="{{ invite_url }}" aria-label="Invite link" onfocus="this.select()">
+          <button class="btn btn-primary btn-sm" type="button" id="sr-copy">Copy link</button>
+        </div>
+        <div class="sr-tools"><button class="btn btn-ghost btn-sm" type="button" id="sr-share" hidden>Share…</button></div>
+        <p class="sr-hint" id="sr-copy-status" role="status" aria-live="polite">
+          {% if room.visibility == 'link' %}Only people with this link can join. Anyone who has it can get in, so share it with people you trust.
+          {% elif room.visibility == 'friends' %}Your friends already see this room in their list. The link works for them too, and only for them.
+          {% elif room.visibility == 'both' %}Your friends and the challenge members already see this room in their list. The link works for them too, and only for them.
+          {% else %}Members of the challenge already see this room in their list. The link works for them too, and only for them.{% endif %}
+        </p>
+        {% if is_owner %}
+        <div class="sr-tools">
+          <form method="post" action="{% url 'room_regenerate_invite' pk=room.pk %}" onsubmit="return confirm('Create a new link? The current link will stop working.');">{% csrf_token %}
+            <button class="btn btn-ghost btn-sm" type="submit">New link</button>
+          </form>
+          <form method="post" action="{% url 'room_toggle_lock' pk=room.pk %}">{% csrf_token %}
+            <button class="btn btn-ghost btn-sm" type="submit">{% if room.is_locked %}Unlock room{% else %}Lock room{% endif %}</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="panel">
+        <div class="panel-title"><h2>Your status</h2></div>
+        <form method="post" action="{% url 'room_goal' pk=room.pk %}" class="sr-goal-form" id="sr-goal-form">{% csrf_token %}
+          <input type="text" name="goal" maxlength="80" value="{{ me.goal }}" placeholder="What are you working on?" aria-label="What are you working on?">
+          <button class="btn btn-ghost btn-sm" type="submit">Save</button>
+        </form>
+        <p class="sr-saved" id="sr-saved" role="status" aria-live="polite"></p>
+        <a class="btn btn-primary" style="width:100%; justify-content:center" href="{% url 'study' %}">
+          {% if me.status == 'live' %}Back to my session{% elif me.status == 'paused' %}Resume my session{% else %}Start a focus session{% endif %}
+        </a>
+        <p class="sr-hint">Your time shows up here by itself while you study. Nothing about your courses is shared.</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title"><h2>Room</h2></div>
+        <div class="sr-tools" style="margin-top:0">
+          {% if is_owner %}
+          <a class="btn btn-ghost btn-sm" href="{% url 'room_edit' pk=room.pk %}">Edit room</a>
+          <a class="btn btn-danger btn-sm" href="{% url 'room_delete' pk=room.pk %}">Delete room</a>
+          {% else %}
+          <form method="post" action="{% url 'room_leave' pk=room.pk %}" onsubmit="return confirm('Leave this room?');">{% csrf_token %}
+            <button class="btn btn-danger btn-sm" type="submit">Leave room</button>
+          </form>
+          {% endif %}
+        </div>
+        {% if banned %}
+        <hr class="divider">
+        <p class="section-meta">Removed people</p>
+        <ul class="sr-banned">
+          {% for b in banned %}
+          <li><span>{{ b.user.username }}</span>
+            <form method="post" action="{% url 'room_unban' pk=room.pk user_id=b.user.pk %}">{% csrf_token %}<button class="linklike" type="submit">Allow back</button></form>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+  <div class="sr-dock">
+    <a class="btn btn-primary" href="{% url 'study' %}">{% if me.status == 'live' %}Back to my session{% elif me.status == 'paused' %}Resume session{% else %}Start studying{% endif %}</a>
+    <button class="btn btn-ghost sr-copy-btn" type="button" data-copy-from="sr-invite-url">Invite</button>
+  </div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/rooms.js' %}"></script>{% endblock %}

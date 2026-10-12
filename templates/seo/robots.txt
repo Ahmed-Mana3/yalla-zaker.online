@@ -11,5 +11,6 @@ Disallow: /profile/
 Disallow: /study/
 Disallow: /courses/
 Disallow: /challenges/create/
+Disallow: /rooms/
 
 Sitemap: {{ canonical_site }}/sitemap.xml

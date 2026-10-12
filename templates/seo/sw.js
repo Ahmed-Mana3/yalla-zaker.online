@@ -1,6 +1,6 @@
-/* v3: the break/timer JS changed — bump the name so clients drop the old
+/* v4: rooms.css/rooms.js added; bump the name so clients drop the old
    cached copy of /static/js/app.js and /static/css/app.css. */
-const CACHE_NAME = 'yalla-zaker-cache-v3';
+const CACHE_NAME = 'yalla-zaker-cache-v4';
 const urlsToCache = [
   '/static/css/app.css',
   '/static/js/app.js',
