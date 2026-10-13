@@ -4,7 +4,7 @@
 <div class="wrap page">
   <div class="panel form-card">
     <h1>Start a challenge</h1>
-    <p class="section-meta">The score is the longest single non-stop session. Everyone who joins gets ranked.</p>
+    <p class="section-meta">Everyone who joins is ranked by total study time between the start and end dates.</p>
     <form method="post" class="form-stack">
       {% csrf_token %}
       {% if form.non_field_errors %}<div class="field-errors">{{ form.non_field_errors }}</div>{% endif %}
@@ -34,7 +34,7 @@
         </div>
       </div>
 
-      <div class="form-actions">
+      <div class="form-actions ch-form-actions">
         <button class="btn btn-primary" type="submit">Create challenge</button>
         <a class="btn btn-ghost" href="{% url 'challenges' %}">Cancel</a>
       </div>

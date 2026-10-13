@@ -1,0 +1,8 @@
+{% if c.member_count %}
+<span class="ch-faces" aria-label="{{ c.member_count }} member{{ c.member_count|pluralize }}">
+  {% for u in c.faces %}{% include 'partials/avatar.html' with u=u size=28 %}{% endfor %}
+  {% if c.more_faces %}<span class="ch-faces-more">+{{ c.more_faces }}</span>{% endif %}
+</span>
+{% else %}
+<span class="ch-faces-empty">no one yet — be first</span>
+{% endif %}

@@ -1,58 +1,121 @@
 {% extends 'base.html' %}
 {% block title %}Challenges · yalla zaker{% endblock %}
-{% block meta_description %}See who is winning — join or create a study challenge on yalla zaker and race friends to the longest non-stop deep work session.{% endblock %}
+{% block meta_description %}See who is winning — join or create a study challenge on yalla zaker and race friends to the most study time.{% endblock %}
 {% block body %}
-<div class="wrap page">
-  <div class="panel-title" style="margin-bottom:20px">
-    <h1>Challenges</h1>
-    <a class="btn btn-primary btn-sm" href="{% url 'challenge_create' %}">Start a challenge</a>
-  </div>
+<div class="wrap page ch-page">
+  {% if active %}
+  {# something is running: keep the header light so the live cards lead #}
+  <header class="ch-head">
+    <div>
+      <h1>Challenges</h1>
+      <p class="section-meta">Race your friends to the most study time.</p>
+    </div>
+    <a class="btn btn-primary btn-sm" href="{% url 'challenge_create' %}">+ Start a challenge</a>
+  </header>
+  {% else %}
+  <header class="ch-hero">
+    <span class="ch-hero-ring" aria-hidden="true"></span>
+    <span class="ch-hero-disk" aria-hidden="true"></span>
+    <div class="ch-hero-body">
+      <span class="ch-hero-eyebrow">
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M7 3h10v2h3v3a5 5 0 0 1-4.6 5A5 5 0 0 1 13 15.9V18h3v3H8v-3h3v-2.1A5 5 0 0 1 8.6 13 5 5 0 0 1 4 8V5h3V3Zm0 4H6v1a3 3 0 0 0 1.2 2.4A7 7 0 0 1 7 9V7Zm10 0v2a7 7 0 0 1-.2 1.4A3 3 0 0 0 18 8V7h-1Z"/></svg>
+        Study challenges
+      </span>
+      <h1>Challenges</h1>
+      <p class="ch-hero-sub">Race your friends to the most study time. Every minute counts.</p>
+      {% if active or upcoming %}
+      <ul class="ch-hero-stats">
+        {% if active %}<li><b>{{ active|length }}</b> live</li>{% endif %}
+        {% if racing %}<li><b>{{ racing }}</b> racing now</li>{% endif %}
+        {% if upcoming %}<li><b>{{ upcoming|length }}</b> upcoming</li>{% endif %}
+        {% if joined_count %}<li class="is-mine"><b>{{ joined_count }}</b> you’re in</li>{% endif %}
+      </ul>
+      {% endif %}
+      <a class="btn ch-hero-cta" href="{% url 'challenge_create' %}">+ Start a challenge</a>
+    </div>
+  </header>
+  {% endif %}
 
   {% if active %}
-  <h2 style="margin-bottom:10px">Running now</h2>
-  <div class="grid grid-col">
-    {% for c in active %}
-    <div class="panel">
-      <span class="tag tag-live">live now</span>
-      <h3 style="margin:10px 0 4px">{{ c.title }}</h3>
-      <p class="section-meta">{{ c.starts_at|date:'M j' }} → {{ c.ends_at|date:'M j' }} · {{ c.members.count }} members</p>
-      <a class="btn btn-ghost btn-sm" href="{% url 'challenge_detail' pk=c.pk %}">See the board</a>
+  <section class="ch-section" aria-labelledby="ch-live-title">
+    <h2 class="ch-section-title" id="ch-live-title"><span class="ch-live-dot" aria-hidden="true"></span>Running now</h2>
+    <div class="ch-grid ch-grid-live">
+      {% for c in active %}
+      <a class="ch-card is-live" href="{% url 'challenge_detail' pk=c.pk %}">
+        <span class="ch-card-top">
+          <span class="ch-pill-live">live</span>
+          {% if c.joined %}<span class="ch-joined">✓ joined</span>{% endif %}
+          <span class="ch-left{% if c.days_left <= 1 %} is-urgent{% endif %}">{% if c.days_left == 0 %}ends today{% else %}{{ c.days_left }} day{{ c.days_left|pluralize }} left{% endif %}</span>
+        </span>
+        <span class="ch-card-title">{{ c.title }}</span>
+        <span class="ch-progress" role="img" aria-label="Day {{ c.day_num }} of {{ c.days_total }}">
+          <span class="ch-progress-fill" style="width: {{ c.pct }}%"></span>
+        </span>
+        <span class="ch-progress-lab">
+          <span>Day {{ c.day_num }} of {{ c.days_total }}</span>
+          <span>{{ c.starts_at|date:'M j' }} → {{ c.ends_at|date:'M j' }}</span>
+        </span>
+        <span class="ch-card-foot">
+          {% include 'challenges/_faces.html' %}
+          <span class="ch-card-go">{% if c.joined %}See the board{% else %}Join in{% endif %} <span aria-hidden="true">→</span></span>
+        </span>
+      </a>
+      {% endfor %}
     </div>
-    {% endfor %}
-  </div>
+  </section>
   {% endif %}
 
   {% if upcoming %}
-  <h2 style="margin:26px 0 10px">Upcoming</h2>
-  <div class="grid grid-col">
-    {% for c in upcoming %}
-    <div class="panel">
-      <h3 style="margin:0 0 4px">{{ c.title }}</h3>
-      <p class="section-meta">starts {{ c.starts_at|date:'M j, Y' }}</p>
-      <a class="btn btn-ghost btn-sm" href="{% url 'challenge_detail' pk=c.pk %}">Details</a>
+  <section class="ch-section" aria-labelledby="ch-up-title">
+    <h2 class="ch-section-title" id="ch-up-title">Upcoming</h2>
+    <div class="ch-grid">
+      {% for c in upcoming %}
+      <a class="ch-card ch-card-row is-upcoming" href="{% url 'challenge_detail' pk=c.pk %}">
+        <span class="ch-date" aria-hidden="true">
+          <span class="ch-date-mon">{{ c.starts_at|date:'M' }}</span>
+          <span class="ch-date-day">{{ c.starts_at|date:'j' }}</span>
+        </span>
+        <span class="ch-card-main">
+          <span class="ch-card-title">{{ c.title }}</span>
+          <span class="ch-card-meta">
+            <span class="ch-soon">{% if c.starts_in == 1 %}starts tomorrow{% else %}starts in {{ c.starts_in }} days{% endif %}</span>
+            · {{ c.days_total }} day{{ c.days_total|pluralize }}
+            {% if c.joined %}<span class="ch-joined">✓ joined</span>{% endif %}
+          </span>
+          <span class="ch-card-foot">{% include 'challenges/_faces.html' %}</span>
+        </span>
+        <span class="ch-chev" aria-hidden="true">›</span>
+      </a>
+      {% endfor %}
     </div>
-    {% endfor %}
-  </div>
+  </section>
   {% endif %}
 
   {% if past %}
-  <h2 style="margin:26px 0 10px">Finished</h2>
-  <div class="grid grid-col">
-    {% for c in past %}
-    <div class="panel">
-      <span class="tag">closed</span>
-      <h3 style="margin:10px 0 4px">{{ c.title }}</h3>
-      <p class="section-meta">ended {{ c.ends_at|date:'M j, Y' }}</p>
-      <a class="btn btn-ghost btn-sm" href="{% url 'challenge_detail' pk=c.pk %}">Results</a>
-    </div>
-    {% endfor %}
-  </div>
+  <section class="ch-section" aria-labelledby="ch-past-title">
+    <h2 class="ch-section-title" id="ch-past-title">Finished</h2>
+    <ul class="ch-past">
+      {% for c in past %}
+      <li>
+        <a class="ch-past-row" href="{% url 'challenge_detail' pk=c.pk %}">
+          <span class="ch-past-icon" aria-hidden="true">🏁</span>
+          <span class="ch-past-main">
+            <span class="ch-past-title">{{ c.title }}</span>
+            <span class="ch-past-meta">ended {{ c.ends_at|date:'M j, Y' }} · {{ c.member_count }} member{{ c.member_count|pluralize }}</span>
+          </span>
+          <span class="ch-past-go">Results <span aria-hidden="true">›</span></span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
   {% endif %}
 
   {% if not active and not upcoming and not past %}
-  <div class="empty">
+  <div class="ch-empty">
+    <span class="ch-empty-icon" aria-hidden="true">🏆</span>
     <strong>No challenges yet.</strong>
-    <p>Pick a stretch of your semester and race your friends to the longest non‑stop session.</p>
+    <p>Pick a stretch of your semester and race your friends to the most study time.</p>
     <a class="btn btn-primary" href="{% url 'challenge_create' %}">Start the first challenge</a>
   </div>
   {% endif %}

@@ -265,9 +265,13 @@ def friends_index(request):
         live = StudySession.live_for(friend)
         status, label = online_status(friend)
         friend_rows.append({'friend': friend, 'live': live, 'status': status, 'label': label})
+    # studying friends first, then by presence, then alphabetically
+    rank = {'live': 0, 'paused': 1, 'online': 2, 'offline': 3}
+    friend_rows.sort(key=lambda r: (rank.get(r['status'], 4), r['friend'].username.lower()))
 
     ctx = {
         'friends': friend_rows,
+        'live_count': sum(1 for r in friend_rows if r['status'] in ('live', 'paused')),
         'incoming': incoming,
         'outgoing': outgoing,
         'q': q,

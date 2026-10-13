@@ -1,66 +1,96 @@
 {% extends 'base.html' %}
 {% load studytags %}
 {% block title %}{{ challenge.title }} · yalla zaker{% endblock %}
-{% block meta_description %}{{ challenge.title }} — a study challenge on yalla zaker. See the leaderboard, join the challenge, and track who holds the longest non-stop session.{% endblock %}
+{% block meta_description %}{{ challenge.title }} — a study challenge on yalla zaker. See the leaderboard, join the challenge, and track who has studied the most.{% endblock %}
 {% block body %}
-<div class="wrap page">
-  <div class="panel-title" style="margin-bottom:8px">
-    <a href="{% url 'challenges' %}" class="section-meta">&larr; All challenges</a>
-    <h1 style="margin-top:4px">{{ challenge.title }}</h1>
-  </div>
+<div class="wrap page ch-page">
+  <header class="ch-detail-head">
+    <a href="{% url 'challenges' %}" class="ch-back">&larr; All challenges</a>
+    <h1>{{ challenge.title }}</h1>
+    <p class="ch-detail-meta">
+      {% if challenge.is_active %}<span class="tag tag-live">live now</span>
+      {% elif challenge.ends_at < now %}<span class="tag">closed</span>
+      {% else %}<span class="tag tag-ok">upcoming</span>{% endif %}
+      <span>{{ challenge.starts_at|date:'M j' }} → {{ challenge.ends_at|date:'M j, Y' }}</span>
+      <span aria-hidden="true">·</span>
+      <span>{{ challenge.members.count }} member{{ challenge.members.count|pluralize }}</span>
+    </p>
+  </header>
 
-  <div class="grid grid-main">
-    <div class="panel">
+  <div class="ch-layout">
+    {# status / call to action first in the DOM so phones see it without scrolling past the board #}
+    <aside class="ch-side">
+      <div class="panel ch-me">
+        {% if request.user.is_authenticated %}
+          {% if is_member %}
+            {% if me %}
+            <div class="ch-me-stats">
+              <div class="ch-me-stat">
+                <span class="ch-me-lab">Your total</span>
+                <span class="ch-me-val">{{ me.total_seconds|dur }}</span>
+              </div>
+              <div class="ch-me-stat">
+                <span class="ch-me-lab">Best session</span>
+                <span class="ch-me-val">{{ me.longest_seconds|dur }}</span>
+              </div>
+            </div>
+            {% endif %}
+            {% if challenge.ends_at >= now %}
+            <a class="btn btn-primary ch-cta" href="{% url 'study' %}">Study something</a>
+            {% else %}
+            <p class="section-meta ch-me-note">This challenge has ended.</p>
+            {% endif %}
+          {% elif challenge.ends_at >= now %}
+            <p class="ch-me-note">Join to get ranked — every minute you study until {{ challenge.ends_at|date:'M j' }} counts.</p>
+            <form method="post" action="{% url 'challenge_join' pk=challenge.pk %}">{% csrf_token %}
+              <button class="btn btn-primary ch-cta" type="submit">Join this challenge</button>
+            </form>
+          {% else %}
+            <p class="section-meta ch-me-note">This challenge has ended.</p>
+          {% endif %}
+        {% else %}
+          <p class="ch-me-note">Log in to join and get ranked.</p>
+          <a class="btn btn-primary ch-cta" href="{% url 'login' %}">Log in to join</a>
+        {% endif %}
+      </div>
+
+      {% if challenge.description %}
+      <div class="panel ch-rules">
+        <h2>Rules</h2>
+        <p>{{ challenge.description }}</p>
+      </div>
+      {% endif %}
+    </aside>
+
+    <section class="panel ch-board" aria-labelledby="ch-board-title">
       <div class="panel-title">
-        <h2>Leaderboard</h2>
-        <span class="meta">most total study time wins</span>
+        <h2 id="ch-board-title">Leaderboard</h2>
+        <span class="meta">ranked by total study time</span>
       </div>
       {% if leaderboard %}
       <ol class="leaderboard">
         {% for user, longest, total in leaderboard %}
-        <li class="lb-row {% if forloop.counter0 == 0 %}is-top{% endif %} {% if user == request.user %}is-me{% endif %}">
+        <li class="lb-row{% if forloop.counter <= 3 %} is-podium is-rank-{{ forloop.counter }}{% endif %}{% if user == request.user %} is-me{% endif %}">
           <span class="lb-rank">{{ forloop.counter }}</span>
-          {% include 'partials/avatar.html' with u=user size=30 %}
-          <a href="{% url 'profile' username=user.username %}">{{ user.username }}</a>
-          <span class="lb-time">{{ longest|dur }}</span>
-          <span class="lb-total">{{ total|dur }} total</span>
+          {% include 'partials/avatar.html' with u=user size=34 %}
+          <span class="lb-who">
+            <span class="lb-line">
+              <a href="{% url 'profile' username=user.username %}" class="lb-name">{{ user.username }}</a>
+              {% if user == request.user %}<span class="lb-you">you</span>{% endif %}
+            </span>
+            <span class="lb-best">best session {{ longest|dur }}</span>
+          </span>
+          <span class="lb-total">{{ total|dur }}</span>
         </li>
         {% endfor %}
       </ol>
       {% else %}
       <div class="empty">
         <strong>No scoreboard yet.</strong>
-        <p>Study before {{ challenge.ends_at|date:'M j' }} and your longest session lands here.</p>
+        <p>Study before {{ challenge.ends_at|date:'M j' }} and your time lands here.</p>
       </div>
       {% endif %}
-    </div>
-
-    <div style="display:flex; flex-direction:column; gap:18px">
-      <div class="panel">
-        {% if challenge.is_active %}<span class="tag tag-live">live now</span>
-        {% elif challenge.ends_at < now %}<span class="tag">closed</span>
-        {% else %}<span class="tag tag-ok">upcoming</span>{% endif %}
-        <h3 style="margin:10px 0 6px">{{ challenge.starts_at|date:'M j' }} → {{ challenge.ends_at|date:'M j, Y' }}</h3>
-        <p class="section-meta">{{ challenge.members.count }} member{{ challenge.members.count|pluralize }}</p>
-        {% if challenge.description %}<p class="section-meta" style="white-space:pre-line; margin-top:10px">{{ challenge.description }}</p>{% endif %}
-        <hr class="divider">
-        {% if request.user.is_authenticated %}
-          {% if is_member %}
-            {% if me %}
-            <p><strong>Your total:</strong> <span class="mono">{{ me.total_seconds|dur }}</span>
-              <span class="section-meta">· {{ me.longest_seconds|dur }} best session</span></p>
-            {% endif %}
-            <a class="btn btn-primary" href="{% url 'study' %}">Study something</a>
-          {% else %}
-            <form method="post" action="{% url 'challenge_join' pk=challenge.pk %}">{% csrf_token %}
-              <button class="btn btn-primary" type="submit">Join this challenge</button>
-            </form>
-          {% endif %}
-        {% else %}
-          <a class="btn btn-primary" href="{% url 'login' %}">Log in to join</a>
-        {% endif %}
-      </div>
-    </div>
+    </section>
   </div>
 </div>
 {% endblock %}
