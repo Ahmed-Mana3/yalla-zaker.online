@@ -1,6 +1,4 @@
 ﻿import datetime as dt
-import json
-from unittest import mock
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -9,8 +7,7 @@ from django.utils import timezone
 from courses.models import Course, Roadmap, RoadmapCourse
 from studysessions.models import StudySession
 
-from .models import Friendship, Profile, PushSubscription
-from .push import send_inactivity_reminders
+from .models import Friendship, Profile
 
 
 class OnlineStatusTests(TestCase):
@@ -216,76 +213,3 @@ class SeoTests(TestCase):
         self.assertContains(response, 'name="description"')
         self.assertContains(response, 'property="og:title"')
         self.assertContains(response, 'application/ld+json')
-
-class InactivityPushTests(TestCase):
-    def setUp(self):
-        self.user = User.objects.create_user(username='carol', password='pw')
-        PushSubscription.objects.create(user=self.user, endpoint='https://push.example/abc', p256dh='k', auth='a')
-        self.now = timezone.now()
-
-    def _set_last_seen(self, hours):
-        Profile.objects.filter(user=self.user).update(last_seen=self.now - dt.timedelta(hours=hours))
-
-    def run_reminders(self):
-        with mock.patch('accounts.push.send_push', return_value=True) as sender:
-            return send_inactivity_reminders(self.now), sender
-
-    def test_notifies_after_eight_hours_away(self):
-        self._set_last_seen(9)
-        count, sender = self.run_reminders()
-        self.assertEqual(count, 1)
-        self.assertEqual(sender.call_count, 1)
-
-    def test_skips_recently_active_user(self):
-        self._set_last_seen(7)
-        count, sender = self.run_reminders()
-        self.assertEqual(count, 0)
-        sender.assert_not_called()
-
-    def test_only_one_reminder_per_absence(self):
-        self._set_last_seen(9)
-        self.run_reminders()
-        count, sender = self.run_reminders()
-        self.assertEqual(count, 0)
-        sender.assert_not_called()
-
-    def test_returning_user_is_rearmed(self):
-        self._set_last_seen(9)
-        self.run_reminders()
-        self._set_last_seen(8.5)  # visited after the reminder, then left again
-        Profile.objects.filter(user=self.user).update(inactivity_push_sent_at=self.now - dt.timedelta(hours=10))
-        count, _ = self.run_reminders()
-        self.assertEqual(count, 1)
-
-    def test_cron_endpoint_requires_secret(self):
-        with self.settings(CRON_SECRET='s3cret'):
-            self.assertEqual(self.client.get('/cron/inactivity-push/').status_code, 403)
-            self.assertEqual(
-                self.client.get('/cron/inactivity-push/', HTTP_AUTHORIZATION='Bearer nope').status_code, 403)
-
-    def test_cron_endpoint_forbidden_when_secret_unset(self):
-        with self.settings(CRON_SECRET=''):
-            self.assertEqual(self.client.get('/cron/inactivity-push/', HTTP_AUTHORIZATION='Bearer ').status_code, 403)
-
-    def test_cron_endpoint_runs_with_secret(self):
-        self._set_last_seen(9)
-        with self.settings(CRON_SECRET='s3cret', VAPID_PUBLIC_KEY='p', VAPID_PRIVATE_KEY='q'), \
-                mock.patch('accounts.push.send_push', return_value=True):
-            resp = self.client.get('/cron/inactivity-push/', HTTP_AUTHORIZATION='Bearer s3cret')
-        self.assertEqual(resp.json(), {'ok': True, 'notified': 1})
-
-    def test_subscribe_saves_and_unsubscribe_removes(self):
-        self.client.login(username='carol', password='pw')
-        body = {'endpoint': 'https://push.example/new', 'keys': {'p256dh': 'k2', 'auth': 'a2'}}
-        resp = self.client.post('/push/subscribe/', json.dumps(body), content_type='application/json')
-        self.assertEqual(resp.status_code, 200)
-        self.assertTrue(PushSubscription.objects.filter(endpoint='https://push.example/new').exists())
-        resp = self.client.post('/push/unsubscribe/', json.dumps({'endpoint': body['endpoint']}),
-                                content_type='application/json')
-        self.assertEqual(resp.status_code, 200)
-        self.assertFalse(PushSubscription.objects.filter(endpoint=body['endpoint']).exists())
-
-    def test_subscribe_rejects_bad_payload_and_anonymous(self):
-        self.assertEqual(self.client.post('/push/subscribe/', '{}', content_type='application/json').status_code, 302)
-        self.client.login(username='carol', password='pw')
-        self.assertEqual(self.client.post('/push/subscribe/', '{}', content_type='application/json').status_code, 400)

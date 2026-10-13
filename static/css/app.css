@@ -184,16 +184,6 @@ code { font-family: var(--font-mono); }
 }
 .user-chip:hover { border-color: var(--color-blue); box-shadow: 0 0 0 3px var(--blue-soft); }
 
-.push-toggle {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px;
-  background: transparent; color: var(--text); font: inherit; font-size: 0.8rem; cursor: pointer;
-}
-.push-toggle[hidden] { display: none; }
-.push-toggle:hover { border-color: var(--color-blue); }
-.push-toggle[aria-pressed="true"] { border-color: var(--color-blue); background: var(--blue-soft); }
-@media (max-width: 720px) { .push-toggle-label { display: none; } }
-
 .linklike {
   background: none; border: none; color: var(--muted);
   cursor: pointer; font: inherit; padding: 0;

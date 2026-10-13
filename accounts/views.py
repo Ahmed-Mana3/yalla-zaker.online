@@ -1,5 +1,3 @@
-import hmac
-import json
 from datetime import timedelta
 
 from django.contrib import messages
@@ -7,12 +5,11 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Q, Sum
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.views.decorators.http import require_POST
 from urllib.parse import quote
 
 from challenges.models import Challenge, ChallengeMember
@@ -21,8 +18,7 @@ from courses.views import prefetched_roadmaps, roadmap_card_list
 from studysessions.models import StudySession
 
 from .forms import ProfileForm, SignUpForm
-from .models import Friendship, Profile, ProfileAvatar, PushSubscription
-from .push import push_configured, send_inactivity_reminders
+from .models import Friendship, Profile, ProfileAvatar
 
 
 def online_status(user):
@@ -71,47 +67,6 @@ def logout_view(request):
         logout(request)
         return redirect('home')
     return redirect('home')
-
-
-@login_required
-@require_POST
-def push_subscribe(request):
-    try:
-        data = json.loads(request.body)
-        endpoint = data['endpoint']
-        keys = data['keys']
-        p256dh, auth = keys['p256dh'], keys['auth']
-    except (ValueError, KeyError, TypeError):
-        return JsonResponse({'ok': False}, status=400)
-    if not (isinstance(endpoint, str) and endpoint.startswith('https://')):
-        return JsonResponse({'ok': False}, status=400)
-    PushSubscription.objects.update_or_create(
-        endpoint=endpoint,
-        defaults={'user': request.user, 'p256dh': p256dh, 'auth': auth},
-    )
-    return JsonResponse({'ok': True})
-
-
-@login_required
-@require_POST
-def push_unsubscribe(request):
-    try:
-        endpoint = json.loads(request.body)['endpoint']
-    except (ValueError, KeyError, TypeError):
-        return JsonResponse({'ok': False}, status=400)
-    PushSubscription.objects.filter(user=request.user, endpoint=endpoint).delete()
-    return JsonResponse({'ok': True})
-
-
-def cron_inactivity_push(request):
-    """Hit by the scheduler (see vercel.json); sends the 8-hour reminders."""
-    secret = settings.CRON_SECRET
-    supplied = request.headers.get('Authorization', '')
-    if not secret or not hmac.compare_digest(supplied.encode(), f'Bearer {secret}'.encode()):
-        return HttpResponse(status=403)
-    if not push_configured():
-        return JsonResponse({'ok': False, 'error': 'VAPID keys not configured'}, status=503)
-    return JsonResponse({'ok': True, 'notified': send_inactivity_reminders()})
 
 
 @login_required

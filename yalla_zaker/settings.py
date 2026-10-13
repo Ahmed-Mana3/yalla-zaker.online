@@ -174,15 +174,6 @@ ONLINE_WINDOW_MINUTES = 5
 # OnlineStatusMiddleware writes Profile.last_seen at most this often per session.
 ONLINE_THROTTLE_SECONDS = 60
 
-# Web Push: remind users who haven't opened the site for this many hours.
-# Generate keys with `python manage.py generate_vapid_keys`.
-INACTIVITY_PUSH_HOURS = int(os.environ.get("INACTIVITY_PUSH_HOURS", "8"))
-VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
-VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").replace("\\n", "\n").strip()
-VAPID_SUBJECT = os.environ.get("VAPID_SUBJECT", "mailto:admin@yalla-zaker.online")
-# Vercel Cron sends `Authorization: Bearer $CRON_SECRET` to the cron endpoint.
-CRON_SECRET = os.environ.get("CRON_SECRET", "").strip()
-
 # SEO: pin the production domain here so sitemap/robots/canonical use it.
 # Left empty, the request's own host is used (works in dev and on any host).
 SEO_CANONICAL_HOST = os.environ.get("SEO_CANONICAL_HOST", "")
