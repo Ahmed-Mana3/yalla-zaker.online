@@ -16,6 +16,9 @@ class Profile(models.Model):
     # Set when a picture is uploaded; doubles as the cache-busting version.
     # The image bytes live in ProfileAvatar so ordinary profile loads stay light.
     avatar_updated = models.DateTimeField(null=True, blank=True)
+    # When the "we miss you" push last went out; compared with last_seen so each
+    # absence produces at most one reminder.
+    inactivity_push_sent_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return self.user.username
@@ -34,6 +37,21 @@ class ProfileAvatar(models.Model):
     profile = models.OneToOneField(Profile, on_delete=models.CASCADE, related_name='avatar_file')
     content_type = models.CharField(max_length=20)
     data = models.BinaryField()
+
+
+class PushSubscription(models.Model):
+    """A browser's Web Push endpoint for one user (a user may have several devices)."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='push_subscriptions')
+    endpoint = models.TextField(unique=True)
+    p256dh = models.CharField(max_length=255)
+    auth = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.user} push subscription'
+
+    def as_webpush(self):
+        return {'endpoint': self.endpoint, 'keys': {'p256dh': self.p256dh, 'auth': self.auth}}
 
 
 class Friendship(models.Model):

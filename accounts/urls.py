@@ -18,6 +18,9 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('profile/', views.profile_edit, name='profile_edit'),
+    path('push/subscribe/', views.push_subscribe, name='push_subscribe'),
+    path('push/unsubscribe/', views.push_unsubscribe, name='push_unsubscribe'),
+    path('cron/inactivity-push/', views.cron_inactivity_push, name='cron_inactivity_push'),
     path('users/<str:username>/avatar/', views.avatar_image, name='avatar'),
     path('users/<str:username>/', views.profile_view, name='profile'),
 

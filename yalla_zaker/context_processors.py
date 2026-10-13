@@ -13,4 +13,5 @@ def seo(request):
     return {
         'canonical_site': site,
         'canonical_path': request.path,
+        'vapid_public_key': getattr(settings, 'VAPID_PUBLIC_KEY', ''),
     }

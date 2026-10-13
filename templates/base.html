@@ -63,6 +63,14 @@
         <a href="{% url 'rooms' %}" class="{% if request.resolver_match.url_name == 'rooms' or request.resolver_match.url_name|slice:':5' == 'room_' %}is-active{% endif %}">Rooms</a>
       </nav>
       <div class="topbar-right auth-topbar-right">
+        {% if vapid_public_key %}
+        <button type="button" class="push-toggle" id="push-toggle" data-key="{{ vapid_public_key }}"
+                data-subscribe-url="{% url 'push_subscribe' %}" data-unsubscribe-url="{% url 'push_unsubscribe' %}"
+                aria-pressed="false" title="Remind me to study" hidden>
+          <span aria-hidden="true">&#128276;</span>
+          <span class="push-toggle-label">Reminders off</span>
+        </button>
+        {% endif %}
         <a class="user-chip" href="{% url 'profile' username=request.user.username %}">
           {% include 'partials/avatar.html' with u=request.user size=30 %}
           <span class="user-chip-name">{{ request.user.username }}</span>
