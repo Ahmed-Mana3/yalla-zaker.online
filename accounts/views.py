@@ -5,6 +5,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Q, Sum
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -17,7 +18,7 @@ from courses.views import prefetched_roadmaps, roadmap_card_list
 from studysessions.models import StudySession
 
 from .forms import ProfileForm, SignUpForm
-from .models import Friendship, Profile
+from .models import Friendship, Profile, ProfileAvatar
 
 
 def online_status(user):
@@ -146,12 +147,28 @@ def dashboard(request):
 @login_required
 def profile_edit(request):
     profile, _ = Profile.objects.get_or_create(user=request.user)
-    form = ProfileForm(request.POST or None, instance=profile)
+    form = ProfileForm(request.POST or None, request.FILES or None, instance=profile)
     if request.method == 'POST' and form.is_valid():
-        form.save()
+        profile = form.save(commit=False)
+        upload = form.cleaned_data.get('avatar')
+        if upload:
+            ProfileAvatar.objects.update_or_create(profile=profile, defaults=upload)
+            profile.avatar_updated = timezone.now()
+        elif form.cleaned_data.get('remove_avatar'):
+            ProfileAvatar.objects.filter(profile=profile).delete()
+            profile.avatar_updated = None
+        profile.save()
         messages.success(request, 'Profile saved.')
         return redirect('profile', username=request.user.username)
-    return render(request, 'accounts/profile_edit.html', {'form': form})
+    return render(request, 'accounts/profile_edit.html', {'form': form, 'profile': profile})
+
+
+def avatar_image(request, username):
+    avatar = get_object_or_404(ProfileAvatar, profile__user__username=username)
+    response = HttpResponse(bytes(avatar.data), content_type=avatar.content_type)
+    response['Cache-Control'] = 'public, max-age=86400'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 def profile_view(request, username):

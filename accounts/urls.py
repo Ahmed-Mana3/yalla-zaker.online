@@ -18,6 +18,7 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('profile/', views.profile_edit, name='profile_edit'),
+    path('users/<str:username>/avatar/', views.avatar_image, name='avatar'),
     path('users/<str:username>/', views.profile_view, name='profile'),
 
     # Friends

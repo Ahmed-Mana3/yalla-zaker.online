@@ -13,6 +13,9 @@ class Profile(models.Model):
     avatar_hue = models.PositiveSmallIntegerField(default=210)
     # Updated by OnlineStatusMiddleware whenever the user is active on the site.
     last_seen = models.DateTimeField(null=True, blank=True)
+    # Set when a picture is uploaded; doubles as the cache-busting version.
+    # The image bytes live in ProfileAvatar so ordinary profile loads stay light.
+    avatar_updated = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return self.user.username
@@ -24,6 +27,13 @@ class Profile(models.Model):
         now = now or timezone.now()
         window = getattr(settings, 'ONLINE_WINDOW_MINUTES', 5)
         return now - self.last_seen <= dt.timedelta(minutes=window)
+
+
+class ProfileAvatar(models.Model):
+    """Uploaded profile picture, stored in the database (the host has no persistent disk)."""
+    profile = models.OneToOneField(Profile, on_delete=models.CASCADE, related_name='avatar_file')
+    content_type = models.CharField(max_length=20)
+    data = models.BinaryField()
 
 
 class Friendship(models.Model):

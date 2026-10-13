@@ -1,11 +1,38 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block title %}Edit profile · yalla zaker{% endblock %}
 {% block body %}
 <div class="wrap page">
   <div class="panel form-card">
     <h1>Edit profile</h1>
-    <form method="post" class="form-stack">
+    <form method="post" enctype="multipart/form-data" class="form-stack" id="profile-form">
       {% csrf_token %}
+
+      <div class="avatar-up" id="avatar-up" data-max="2097152"
+           data-has-image="{% if profile.avatar_updated %}1{% else %}0{% endif %}"
+           style="--hue: {{ profile.avatar_hue|default:210 }};">
+        <input type="file" name="avatar" id="{{ form.avatar.id_for_label }}" class="avatar-up-input"
+               accept="image/jpeg,image/png,image/gif,image/webp">
+        <input type="checkbox" name="remove_avatar" id="id_remove_avatar" hidden>
+
+        <label for="{{ form.avatar.id_for_label }}" class="avatar-up-drop" id="avatar-drop" title="Change profile picture">
+          <span class="avatar-up-circle">
+            <img class="avatar-up-img" id="avatar-img" alt="Profile picture"
+                 {% if profile.avatar_updated %}src="{% url 'avatar' username=request.user.username %}?v={{ profile.avatar_updated|date:'U' }}"{% else %}hidden{% endif %}>
+            <span class="avatar-up-initial" id="avatar-initial"{% if profile.avatar_updated %} hidden{% endif %}>{{ request.user.username|slice:":1"|upper }}</span>
+          </span>
+          <span class="avatar-up-badge" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </span>
+        </label>
+
+        <div class="avatar-up-actions">
+          <label for="{{ form.avatar.id_for_label }}" class="avatar-up-link" id="avatar-choose">{% if profile.avatar_updated %}Change photo{% else %}Add a photo{% endif %}</label>
+          <button type="button" class="avatar-up-link is-danger" id="avatar-clear"{% if not profile.avatar_updated %} hidden{% endif %}>Remove</button>
+        </div>
+        <p class="avatar-up-msg" id="avatar-msg" role="status" aria-live="polite">JPG, PNG, GIF or WebP · up to 2&nbsp;MB</p>
+        {% if form.avatar.errors %}<div class="field-errors">{{ form.avatar.errors }}</div>{% endif %}
+      </div>
+
       <div class="field">
         <label for="{{ form.bio.id_for_label }}">Bio</label>
         {{ form.bio }}
@@ -19,3 +46,88 @@
   </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var root = document.getElementById('avatar-up');
+  var input = root.querySelector('.avatar-up-input');
+  var removeBox = document.getElementById('id_remove_avatar');
+  var drop = document.getElementById('avatar-drop');
+  var img = document.getElementById('avatar-img');
+  var initial = document.getElementById('avatar-initial');
+  var msg = document.getElementById('avatar-msg');
+  var clear = document.getElementById('avatar-clear');
+  var choose = document.getElementById('avatar-choose');
+  var max = parseInt(root.dataset.max, 10);
+  var original = img.getAttribute('src');
+  var hadImage = root.dataset.hasImage === '1';
+  var types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  var objectUrl = null;
+  var defaultMsg = msg.textContent;
+
+  function say(text, kind) {
+    msg.textContent = text || '';
+    msg.className = 'avatar-up-msg' + (kind ? ' is-' + kind : '');
+  }
+  function show(src) {
+    if (src) { img.src = src; img.hidden = false; initial.hidden = true; }
+    else { img.removeAttribute('src'); img.hidden = true; initial.hidden = false; }
+  }
+  function revoke() { if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; } }
+
+  function take(file) {
+    if (!file) return;
+    if (types.indexOf(file.type) === -1) { input.value = ''; say('That file isn’t a JPG, PNG, GIF or WebP image.', 'error'); return; }
+    if (file.size > max) { input.value = ''; say('That image is ' + (file.size / 1048576).toFixed(1) + ' MB — the limit is 2 MB.', 'error'); return; }
+    revoke();
+    objectUrl = URL.createObjectURL(file);
+    show(objectUrl);
+    removeBox.checked = false;
+    clear.hidden = false;
+    clear.textContent = 'Undo';
+    choose.textContent = 'Change photo';
+    say('Looking good! Press “Save profile” to keep it.', 'ok');
+  }
+
+  input.addEventListener('change', function () { take(input.files[0]); });
+
+  clear.addEventListener('click', function () {
+    var pickedNew = input.files && input.files.length;
+    input.value = '';
+    revoke();
+    if (pickedNew) {
+      // Undo the new pick: go back to whatever was saved.
+      removeBox.checked = false;
+      show(hadImage ? original : null);
+      clear.textContent = 'Remove';
+      clear.hidden = !hadImage;
+      choose.textContent = hadImage ? 'Change photo' : 'Add a photo';
+      say(defaultMsg);
+    } else {
+      removeBox.checked = true;
+      show(null);
+      clear.hidden = true;
+      choose.textContent = 'Add a photo';
+      say('Picture will be removed when you save.', 'ok');
+    }
+  });
+
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-drag'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('is-drag'); });
+  });
+  drop.addEventListener('drop', function (e) {
+    var f = e.dataTransfer && e.dataTransfer.files[0];
+    if (!f) return;
+    var dt = new DataTransfer();
+    dt.items.add(f);
+    input.files = dt.files;
+    take(f);
+  });
+})();
+</script>
+{% endblock %}
+

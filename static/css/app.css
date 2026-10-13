@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    yalla zaker · v2
    One product shell. Blue = action. Gold = live / earned / urgent.
    Magenta = secondary attention. Deep rose = dark surfaces & focus.
@@ -1227,7 +1227,9 @@ a.rm-title:hover { color: var(--color-blue); }
   font-weight: 700;
   flex: none;
   user-select: none;
+  overflow: hidden;
 }
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .avatar-24 { width: 24px; height: 24px; font-size: 0.7rem; }
 .avatar-26 { width: 26px; height: 26px; font-size: 0.71rem; }
 .avatar-28 { width: 28px; height: 28px; font-size: 0.72rem; }
@@ -1236,6 +1238,47 @@ a.rm-title:hover { color: var(--color-blue); }
 .avatar-36 { width: 36px; height: 36px; font-size: 0.95rem; }
 .avatar-48 { width: 48px; height: 48px; font-size: 1.25rem; }
 .avatar-72 { width: 72px; height: 72px; font-size: 1.8rem; }
+
+/* ------------------------------------------------------------ avatar uploader */
+
+.avatar-up { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 4px 0 8px; text-align: center; }
+.avatar-up .avatar-up-input { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
+.avatar-up .avatar-up-drop { position: relative; display: block; margin: 0; cursor: pointer; border-radius: 50%; }
+.avatar-up-circle {
+  display: grid; place-items: center; position: relative; overflow: hidden;
+  width: 120px; height: 120px; border-radius: 50%;
+  background: hsl(var(--hue, 210) 38% 40%); color: hsl(var(--hue, 210) 60% 90%);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--t), box-shadow var(--t);
+}
+.avatar-up-initial { font-family: var(--font-display); font-weight: 700; font-size: 3rem; user-select: none; }
+.avatar-up-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.avatar-up-img[hidden], .avatar-up-initial[hidden] { display: none; }
+.avatar-up-badge {
+  position: absolute; right: 2px; bottom: 2px; display: grid; place-items: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--color-blue); color: #fff; border: 3px solid var(--panel);
+  transition: background var(--t), transform var(--t);
+}
+.avatar-up-drop:hover .avatar-up-circle { transform: scale(1.03); }
+.avatar-up-drop:hover .avatar-up-badge { background: var(--blue-deep); transform: scale(1.08); }
+.avatar-up-input:focus-visible ~ .avatar-up-drop .avatar-up-badge,
+.avatar-up-drop.is-drag .avatar-up-badge { outline: 3px solid var(--blue-glow); }
+.avatar-up-drop.is-drag .avatar-up-circle { box-shadow: 0 0 0 5px var(--blue-glow); }
+.avatar-up-actions { display: flex; gap: 18px; justify-content: center; }
+.avatar-up .avatar-up-link {
+  display: inline; margin: 0; padding: 0; background: none; border: 0; cursor: pointer;
+  font: inherit; font-size: 0.9rem; font-weight: 600; color: var(--color-blue);
+}
+.avatar-up .avatar-up-link:hover { text-decoration: underline; }
+.avatar-up .avatar-up-link.is-danger { color: var(--color-magenta); }
+.avatar-up .avatar-up-link[hidden] { display: none; }
+.avatar-up-msg { margin: 0; font-size: 0.78rem; color: var(--muted); }
+.avatar-up-msg.is-ok { color: var(--green-deep); font-weight: 500; }
+.avatar-up-msg.is-error { color: var(--color-magenta); font-weight: 500; }
+@media (prefers-reduced-motion: reduce) {
+  .avatar-up-circle, .avatar-up-badge { transition: none; }
+}
 
 /* ------------------------------------------------------------ forms */
 
