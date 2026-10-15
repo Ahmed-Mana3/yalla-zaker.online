@@ -4597,6 +4597,42 @@ body.landing-page {
 .cp-flag--btn:hover { border-color: var(--line-strong); }
 .cp-flag--btn:focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
 
+/* challenge hours */
+
+.cp-hours-pick { display: flex; flex-direction: column; gap: 4px; flex: 2 1 320px; min-width: 0; }
+.cp-hours-pick-label {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+}
+.cp-hours-pick select,
+.cp-hours-input {
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 9px 13px;
+}
+.cp-hours-pick select:focus,
+.cp-hours-input:focus {
+  outline: none;
+  border-color: var(--color-blue);
+  box-shadow: 0 0 0 3px var(--blue-soft);
+}
+.cp-hours-filter { align-items: flex-end; }
+.cp-hours-filter input[type="search"] { flex: 1 1 180px; }
+.cp-num { text-align: right; font-variant-numeric: tabular-nums; }
+.cp-hours-form { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.cp-hours-input { width: 96px; padding: 6px 10px; text-align: right; }
+.cp-delta { font-weight: 600; }
+.cp-delta.is-up { color: var(--green-deep); }
+.cp-delta.is-down { color: var(--magenta-deep); }
+
 .cp-link-out { font-size: 0.78rem; }
 .cp-none { color: var(--faint); }
 

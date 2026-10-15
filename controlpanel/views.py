@@ -5,18 +5,21 @@ goes through POST + CSRF, and an optional passphrase can be required by setting
 ``EXCLUSIVE_ADMIN_KEY`` in the environment (see ``settings.py``).
 """
 
+from decimal import Decimal, InvalidOperation
 from functools import wraps
 from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import ProtectedError, RestrictedError
+from django.db.models import Count, ProtectedError, RestrictedError
 from django.http import Http404, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
+
+from challenges.models import Challenge, ChallengeMember
 
 from .forms import form_for
 from .registry import GROUP_BLURBS, get_spec, request_counts, totals
@@ -175,6 +178,85 @@ def dashboard(request):
         'total_records': sum(counts.values()),
         'group_blurbs': GROUP_BLURBS,
     })
+
+
+# ------------------------------------------------------------------ challenge hours
+
+MAX_CHALLENGE_HOURS = 10000
+
+
+def _hours_label(seconds):
+    return f'{seconds / 3600:.2f}'.rstrip('0').rstrip('.') or '0'
+
+
+@never_cache
+@require_open
+def challenge_hours(request):
+    """Pick a challenge and set each member's total study hours inside it."""
+    challenges = list(Challenge.objects.annotate(member_count=Count('members')))
+    selected = None
+    raw = request.GET.get('challenge', '')
+    if raw.isdigit():
+        selected = next((c for c in challenges if c.pk == int(raw)), None)
+    if selected is None and challenges:
+        selected = next((c for c in challenges if c.is_active()), challenges[0])
+
+    term = (request.GET.get('q') or '').strip()
+    rows = []
+    if selected:
+        members = selected.members.select_related('user')
+        if term:
+            members = members.filter(user__username__icontains=term)
+        for member in members:
+            stats = ChallengeMember.member_stats(member.user, selected, member.adjustment_seconds)
+            rows.append({
+                'member': member,
+                'tracked': _hours_label(stats['tracked_seconds']),
+                'adjustment': member.adjustment_seconds,
+                'adjustment_hours': _hours_label(abs(member.adjustment_seconds)),
+                'total_hours': _hours_label(stats['total_seconds']),
+            })
+        rows.sort(key=lambda r: (-float(r['total_hours']), r['member'].user.username.lower()))
+
+    return render(request, 'controlpanel/challenge_hours.html', {
+        'challenges': challenges,
+        'selected': selected,
+        'rows': rows,
+        'term': term,
+        'max_hours': MAX_CHALLENGE_HOURS,
+    })
+
+
+@require_post
+@require_open
+def challenge_hours_set(request, pk):
+    """Set a member's total hours (or clear the adjustment) for one challenge."""
+    member = get_object_or_404(ChallengeMember.objects.select_related('user', 'challenge'), pk=pk)
+    back = reverse('controlpanel:challenge_hours')
+    params = {'challenge': member.challenge_id}
+    if request.POST.get('q'):
+        params['q'] = request.POST['q']
+    target_url = f'{back}?{urlencode(params)}'
+
+    if 'reset' in request.POST:
+        member.adjustment_seconds = 0
+        member.save(update_fields=['adjustment_seconds'])
+        messages.info(request, f'{member.user.username}: back to tracked time only.')
+        return redirect(target_url)
+
+    try:
+        hours = Decimal(request.POST.get('hours', '').strip())
+    except (InvalidOperation, ValueError):
+        hours = None
+    if hours is None or not hours.is_finite() or hours < 0 or hours > MAX_CHALLENGE_HOURS:
+        messages.error(request, f'Enter hours between 0 and {MAX_CHALLENGE_HOURS}.')
+        return redirect(target_url)
+
+    tracked = ChallengeMember.member_stats(member.user, member.challenge, 0)['tracked_seconds']
+    member.adjustment_seconds = int(hours * 3600) - tracked
+    member.save(update_fields=['adjustment_seconds'])
+    messages.success(request, f'{member.user.username} now has {_hours_label(int(hours * 3600))} h in “{member.challenge.title}”.')
+    return redirect(target_url)
 
 
 # ------------------------------------------------------------------ records

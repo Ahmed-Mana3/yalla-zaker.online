@@ -39,6 +39,12 @@ grow its own layout without touching base.html.
       {% for group in cp_nav %}
       <div class="cp-rail-group">
         <div class="cp-rail-group-name">{{ group.name }}</div>
+        {% if group.name == 'Community' %}
+        <a class="cp-rail-link cp-rail-link--sub{% if request.resolver_match.url_name == 'challenge_hours' %} is-active{% endif %}"
+           href="{% url 'controlpanel:challenge_hours' %}">
+          <span class="cp-rail-label">Challenge hours</span>
+        </a>
+        {% endif %}
         {% for entry in group.specs %}
         <a class="cp-rail-link cp-rail-link--sub{% if request.resolver_match.kwargs.model_key == entry.spec.key %} is-active{% endif %}"
            href="{% url 'controlpanel:records' entry.spec.key %}">

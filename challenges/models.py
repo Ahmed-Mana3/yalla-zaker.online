@@ -26,6 +26,8 @@ class ChallengeMember(models.Model):
     challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE, related_name='members')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='joined_challenges')
     joined_at = models.DateTimeField(auto_now_add=True)
+    # Set from the control panel. Added to the tracked study time (may be negative).
+    adjustment_seconds = models.IntegerField(default=0)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['challenge', 'user'], name='unique_challenge_member')]
@@ -35,11 +37,13 @@ class ChallengeMember(models.Model):
         return f'{self.user} in {self.challenge}'
 
     @staticmethod
-    def member_stats(user, challenge):
+    def member_stats(user, challenge, adjustment=None):
         """Study time for a member inside the challenge window.
 
         Uses segment overlap with [starts_at 00:00, ends_at 23:59:59] so a
         session that straddles the window counts toward the in-window part.
+        ``tracked_seconds`` is the clocked time; ``total_seconds`` adds the
+        panel adjustment (looked up unless the caller already has it).
         """
         from studysessions.models import StudySegment
 
@@ -60,8 +64,14 @@ class ChallengeMember(models.Model):
         for session in user.study_sessions.filter(status='finished', ended_at__isnull=False):
             if session.ended_at >= window_open and session.started_at <= window_close:
                 longest = max(longest, session.duration_seconds)
+        if adjustment is None:
+            adjustment = ChallengeMember.objects.filter(
+                challenge=challenge, user=user
+            ).values_list('adjustment_seconds', flat=True).first() or 0
         return {
-            'total_seconds': int(total_seconds),
+            'tracked_seconds': int(total_seconds),
+            'adjustment_seconds': adjustment,
+            'total_seconds': max(0, int(total_seconds) + adjustment),
             'longest_seconds': longest,
         }
 
@@ -69,7 +79,7 @@ class ChallengeMember(models.Model):
     def leaderboard(challenge):
         rows = []
         for member in challenge.members.select_related('user').prefetch_related('user__study_sessions'):
-            stats = ChallengeMember.member_stats(member.user, challenge)
+            stats = ChallengeMember.member_stats(member.user, challenge, member.adjustment_seconds)
             rows.append((member.user, stats['longest_seconds'], stats['total_seconds']))
         rows.sort(key=lambda r: (-r[2], -r[1], r[0].username))
         return rows

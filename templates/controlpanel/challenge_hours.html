@@ -1,0 +1,93 @@
+{% extends 'controlpanel/base.html' %}
+{% block panel_title %}Challenge hours · Control panel{% endblock %}
+{% block panel_body %}
+
+<header class="cp-head cp-head--compact">
+  <div>
+    <div class="eyebrow">Community</div>
+    <h1>Challenge hours</h1>
+    <p class="cp-head-sub">
+      Set the total hours each member has studied in a challenge. The tracked time
+      from the clock is kept; the panel stores only the difference, so the
+      leaderboard updates immediately and you can reset to tracked time any time.
+    </p>
+  </div>
+</header>
+
+{% if not challenges %}
+<div class="empty">
+  <strong>No challenges yet.</strong>
+  <p>Create a challenge first, then come back to manage its hours.</p>
+  <a class="btn btn-primary" href="{% url 'controlpanel:record_add' 'challenge' %}">Add challenge</a>
+</div>
+{% else %}
+
+<form class="cp-search cp-hours-filter" method="get">
+  <label class="cp-hours-pick">
+    <span class="cp-hours-pick-label">Challenge</span>
+    <select name="challenge" onchange="this.form.submit()" aria-label="Challenge">
+      {% for c in challenges %}
+      <option value="{{ c.pk }}"{% if c.pk == selected.pk %} selected{% endif %}>
+        {{ c.title }} · {{ c.starts_at|date:"M j" }}–{{ c.ends_at|date:"M j, Y" }} · {{ c.member_count }} member{{ c.member_count|pluralize }}
+      </option>
+      {% endfor %}
+    </select>
+  </label>
+  <input type="search" name="q" value="{{ term }}" placeholder="Find a member…" aria-label="Find a member">
+  <button class="btn btn-md btn-ghost" type="submit">Apply</button>
+  {% if term %}<a class="btn btn-md btn-ghost" href="?challenge={{ selected.pk }}">Clear</a>{% endif %}
+  <span class="cp-search-count mono">{{ rows|length }} member{{ rows|length|pluralize }}</span>
+</form>
+
+{% if rows %}
+<div class="cp-table-wrap">
+  <table class="cp-table cp-hours-table">
+    <thead>
+      <tr>
+        <th>Member</th>
+        <th class="cp-num">Tracked h</th>
+        <th class="cp-num">Adjustment h</th>
+        <th class="cp-num">Total h</th>
+        <th class="cp-th-actions">Set total hours</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td class="cp-td"><strong>{{ row.member.user.username }}</strong></td>
+        <td class="cp-num mono">{{ row.tracked }}</td>
+        <td class="cp-num mono">
+          {% if row.adjustment > 0 %}<span class="cp-delta is-up">+{{ row.adjustment_hours }}</span>
+          {% elif row.adjustment < 0 %}<span class="cp-delta is-down">−{{ row.adjustment_hours }}</span>
+          {% else %}<span class="cp-none">—</span>{% endif %}
+        </td>
+        <td class="cp-num mono"><strong>{{ row.total_hours }}</strong></td>
+        <td class="cp-td-actions">
+          <form method="post" action="{% url 'controlpanel:challenge_hours_set' row.member.pk %}" class="cp-hours-form">
+            {% csrf_token %}
+            <input type="hidden" name="q" value="{{ term }}">
+            <input class="cp-hours-input mono" type="number" name="hours" value="{{ row.total_hours }}"
+                   min="0" max="{{ max_hours }}" step="0.25" inputmode="decimal" required
+                   aria-label="Total hours for {{ row.member.user.username }}">
+            <button class="btn btn-xs btn-primary" type="submit">Save</button>
+            {% if row.adjustment %}
+            <button class="btn btn-xs btn-ghost" type="submit" name="reset" value="1" formnovalidate
+                    title="Remove the adjustment and use tracked time">Reset</button>
+            {% endif %}
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty">
+  <strong>{% if term %}No member matches “{{ term }}”.{% else %}Nobody has joined this challenge yet.{% endif %}</strong>
+  <p>{% if term %}Try a shorter name, or clear the search.{% else %}Members appear here as soon as they join.{% endif %}</p>
+</div>
+{% endif %}
+
+{% endif %}
+
+{% endblock %}
