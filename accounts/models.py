@@ -50,6 +50,8 @@ class Friendship(models.Model):
     from_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_friend_requests')
     to_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='received_friend_requests')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    # Flipped once the recipient opens the friends page; drives the nav badge.
+    seen = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -70,6 +72,11 @@ class Friendship(models.Model):
             Q(sent_friend_requests__to_user=user, sent_friend_requests__status=Friendship.STATUS_ACCEPTED)
             | Q(received_friend_requests__from_user=user, received_friend_requests__status=Friendship.STATUS_ACCEPTED)
         ).distinct()
+
+    @staticmethod
+    def unseen_requests_for(user):
+        """Pending requests to `user` they haven't looked at yet."""
+        return Friendship.objects.filter(to_user=user, status=Friendship.STATUS_PENDING, seen=False)
 
     @staticmethod
     def are_friends(a, b):

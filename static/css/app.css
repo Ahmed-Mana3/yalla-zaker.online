@@ -170,6 +170,18 @@ code { font-family: var(--font-mono); }
 }
 .mainnav-guest a { font-size: 0.9rem; }
 
+/* unseen friend requests: an inline pill, shorter than the line box so the nav keeps its height */
+.nav-badge {
+  display: inline-block;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: var(--color-magenta); color: #fff;
+  font-size: 0.66rem; font-weight: 700; line-height: 16px;
+  text-align: center;
+  vertical-align: 2px;
+}
+
 .topbar-right { display: flex; align-items: center; gap: 14px; }
 
 .user-chip {
@@ -2671,8 +2683,17 @@ body.is-focus-end .checkin-card {
   border-radius: 8px;
   transition: background var(--t);
   flex: none;
+  position: relative;
 }
 .hamburger-btn:hover { background: var(--panel-2); }
+/* the menu is closed on phones, so flag unseen friend requests on the button itself */
+.hamburger-dot {
+  position: absolute; top: 5px; right: 4px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--color-magenta);
+  box-shadow: 0 0 0 2px var(--panel);
+}
+.hamburger-btn.is-open .hamburger-dot { display: none; }
 .hamburger-line {
   display: block;
   width: 100%; height: 2px;

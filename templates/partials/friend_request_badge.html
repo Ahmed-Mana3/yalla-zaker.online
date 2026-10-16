@@ -1,0 +1,1 @@
+{% if unseen_friend_requests %}<span class="nav-badge" aria-hidden="true">{% if unseen_friend_requests > 9 %}9+{% else %}{{ unseen_friend_requests }}{% endif %}</span><span class="sr-only"> ({{ unseen_friend_requests }} new request{{ unseen_friend_requests|pluralize }})</span>{% endif %}

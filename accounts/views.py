@@ -247,6 +247,8 @@ def friends_index(request):
 
     friends = Friendship.friends_of(user)
     incoming = Friendship.objects.filter(to_user=user, status=Friendship.STATUS_PENDING)
+    # Opening this page counts as seeing every waiting request, which clears the nav badge.
+    Friendship.unseen_requests_for(user).update(seen=True)
     outgoing = Friendship.objects.filter(from_user=user, status=Friendship.STATUS_PENDING)
 
     q = request.GET.get('q', '').strip()

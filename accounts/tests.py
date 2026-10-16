@@ -132,6 +132,53 @@ class OnlineStatusTests(TestCase):
         self.assertNotContains(response, 'Ready to focus?')
 
 
+class FriendRequestBadgeTests(TestCase):
+    def setUp(self):
+        self.alice = User.objects.create_user(username='alice', password='pw')
+        self.bob = User.objects.create_user(username='bob', password='pw')
+        self.carol = User.objects.create_user(username='carol', password='pw')
+
+    def test_badge_counts_unseen_incoming_requests(self):
+        Friendship.objects.create(from_user=self.bob, to_user=self.alice)
+        Friendship.objects.create(from_user=self.carol, to_user=self.alice)
+        self.client.force_login(self.alice)
+        response = self.client.get('/dashboard/')
+        self.assertEqual(response.context['unseen_friend_requests'], 2)
+        self.assertContains(response, '<span class="nav-badge" aria-hidden="true">2</span>', count=2)
+        self.assertContains(response, 'hamburger-dot')
+
+    def test_no_badge_without_requests(self):
+        Friendship.objects.create(from_user=self.alice, to_user=self.bob)
+        Friendship.objects.create(from_user=self.carol, to_user=self.alice, status=Friendship.STATUS_ACCEPTED)
+        self.client.force_login(self.alice)
+        response = self.client.get('/dashboard/')
+        self.assertNotContains(response, 'nav-badge')
+        self.assertNotContains(response, 'hamburger-dot')
+
+    def test_opening_friends_page_clears_badge(self):
+        Friendship.objects.create(from_user=self.bob, to_user=self.alice)
+        self.client.force_login(self.alice)
+        response = self.client.get('/friends/')
+        self.assertNotContains(response, 'nav-badge')
+        self.assertContains(response, 'bob')
+        self.assertNotContains(self.client.get('/dashboard/'), 'nav-badge')
+
+    def test_new_request_after_visit_shows_again(self):
+        Friendship.objects.create(from_user=self.bob, to_user=self.alice)
+        self.client.force_login(self.alice)
+        self.client.get('/friends/')
+        Friendship.objects.create(from_user=self.carol, to_user=self.alice)
+        response = self.client.get('/dashboard/')
+        self.assertEqual(response.context['unseen_friend_requests'], 1)
+
+    def test_badge_caps_at_nine(self):
+        for i in range(10):
+            sender = User.objects.create_user(username=f'u{i}', password='pw')
+            Friendship.objects.create(from_user=sender, to_user=self.alice)
+        self.client.force_login(self.alice)
+        self.assertContains(self.client.get('/dashboard/'), '>9+</span>', count=2)
+
+
 class FriendProfileStatsTests(TestCase):
     def setUp(self):
         self.alice = User.objects.create_user(username='alice', password='pw')

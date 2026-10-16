@@ -86,6 +86,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "yalla_zaker.context_processors.seo",
+                "accounts.context_processors.friend_requests",
                 "controlpanel.context_processors.panel",
             ],
         },
