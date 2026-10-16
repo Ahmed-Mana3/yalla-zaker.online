@@ -29,6 +29,8 @@ class StudySession(models.Model):
         default=False, help_text='True once the post-session log prompt has been resolved.')
     manual_seconds = models.PositiveIntegerField(
         default=0, help_text='Study time the user confirmed and credited to the course.')
+    manual_pages = models.PositiveIntegerField(
+        default=0, help_text='Pages read the user confirmed and credited to a book.')
     created_at = models.DateTimeField(auto_now_add=True)
 
     # Set by refresh_lifecycle() when it auto-finishes this session during the
@@ -243,16 +245,22 @@ class StudySession(models.Model):
             self.checked_in = True
         self.save()
 
-    def confirm_log(self, seconds):
+    def confirm_log(self, seconds, pages=0):
         """Post-session check-in: the user confirms how much study to credit.
 
-        The course is credited with exactly this amount (system time, not asks).
-        Sessions without a course skip this entirely thanks to the views.
+        A course is credited with the confirmed minutes/hours; a book is credited
+        with the confirmed pages instead. Sessions without a course skip this
+        entirely thanks to the views.
         """
         self.manual_seconds = seconds
+        self.manual_pages = max(0, int(pages))
         self.checked_in = True
         self.save()
-        if self.course and seconds >= 60:
+        if not self.course:
+            return
+        if self.course.is_book():
+            self.course.add_pages(self.manual_pages)
+        elif seconds >= 60:
             self.course.hours_done += round(seconds / 3600, 2)
             self.course.save()
             self.course.mark_complete_if_done()

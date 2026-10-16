@@ -57,7 +57,7 @@
       <div class="checkin-header">
         <div class="eyebrow eyebrow-amber">Time's Up · {{ pending.course.title }}</div>
         <h2 id="checkin-heading" class="checkin-title">
-          How many minutes did you finish from the course?
+          {% if pending.course.is_book %}How many pages did you read from the book?{% else %}How many minutes did you finish from the course?{% endif %}
         </h2>
       </div>
 
@@ -65,10 +65,42 @@
         {% csrf_token %}
         <input type="hidden" name="session_id" value="{{ pending.id }}">
 
+        {% if pending.course.is_book %}
         <div class="simple-min-deck">
           <div class="simple-min-input-row">
             <input type="number"
-                   id="log-minutes"
+                   id="log-amount"
+                   name="pages"
+                   min="0"
+                   max="10000"
+                   step="1"
+                   inputmode="numeric"
+                   value=""
+                   placeholder="0"
+                   data-unit="pages"
+                   data-credits="{{ pending.course.pages_done }}"
+                   data-total="{{ pending.course.total_pages }}"
+                   autofocus
+                   required>
+            <span class="simple-min-suffix">pages</span>
+          </div>
+
+          <div class="simple-min-conv">
+            = <strong id="conv-hours">0</strong> pages read
+          </div>
+
+          <div class="simple-quick-pills">
+            <button type="button" class="quick-pill" data-add="5">+5p</button>
+            <button type="button" class="quick-pill" data-add="10">+10p</button>
+            <button type="button" class="quick-pill" data-add="20">+20p</button>
+            <button type="button" class="quick-pill" data-add="50">+50p</button>
+          </div>
+        </div>
+        {% else %}
+        <div class="simple-min-deck">
+          <div class="simple-min-input-row">
+            <input type="number"
+                   id="log-amount"
                    name="minutes"
                    min="0"
                    max="9999"
@@ -76,6 +108,7 @@
                    inputmode="numeric"
                    value="{{ pending.inline_minutes }}"
                    data-base="{{ pending.inline_minutes }}"
+                   data-unit="hours"
                    data-credits="{{ pending.course.credits }}"
                    data-total="{{ pending.course.total_hours }}"
                    autofocus
@@ -95,13 +128,14 @@
             <button type="button" class="quick-pill" data-add="60">+60m</button>
           </div>
         </div>
+        {% endif %}
 
-        {# Course progress summary bar #}
+        {# Item progress summary bar #}
         <div class="simple-course-bar">
           <div class="scb-row">
             <span class="scb-title">{{ pending.course.title }}</span>
             <span class="scb-meta mono">
-              <span id="scb-done">{{ pending.course.credits|hours }}</span> / {{ pending.course.total_hours|hours }}
+              <span id="scb-done">{% if pending.course.is_book %}{{ pending.course.pages_done }}p{% else %}{{ pending.course.credits|hours }}{% endif %}</span> / {{ pending.course.goal_display }}
               (<span id="scb-pct">{{ pending.course.progress|default:0 }}%</span>)
             </span>
           </div>
@@ -109,13 +143,13 @@
             <i id="scb-bar-fill" style="width: {{ pending.course.progress|default:0 }}%"></i>
           </div>
           <div class="scb-remain mono" id="scb-remain">
-            {{ pending.course.remaining_hours|hours }} remaining
+            {{ pending.course.remaining_display }} remaining
           </div>
         </div>
 
         <div class="checkin-actions">
-          <button class="btn btn-primary btn-lg" type="submit" id="btn-submit-log">Log&nbsp;<span id="btn-min-text">{{ pending.inline_minutes }}&nbsp;min</span>&nbsp;·&nbsp;<span class="btn-log-course">{{ pending.course.title }}</span></button>
-          <button class="btn btn-ghost btn-md" type="submit" name="action" value="skip" id="skip-log">Skip (0 min)</button>
+          <button class="btn btn-primary btn-lg" type="submit" id="btn-submit-log">Log&nbsp;<span id="btn-min-text">{% if pending.course.is_book %}0 pages{% else %}{{ pending.inline_minutes }}&nbsp;min{% endif %}</span>&nbsp;·&nbsp;<span class="btn-log-course">{{ pending.course.title }}</span></button>
+          <button class="btn btn-ghost btn-md" type="submit" name="action" value="skip" id="skip-log">Skip ({% if pending.course.is_book %}0 pages{% else %}0 min{% endif %})</button>
         </div>
       </form>
     </section>
@@ -360,10 +394,10 @@
 
             {% for course in courses %}
             <label class="course-option{% if request.GET.course == course.id|stringformat:'s' %} is-active{% endif %}">
-              <input type="radio" name="course" value="{{ course.id }}" {% if request.GET.course == course.id|stringformat:'s' %}checked{% endif %} data-title="{{ course.title }}" data-desc="{{ course.remaining_hours|hours }} remaining">
+              <input type="radio" name="course" value="{{ course.id }}" {% if request.GET.course == course.id|stringformat:'s' %}checked{% endif %} data-title="{{ course.title }}" data-desc="{{ course.remaining_display }} remaining">
               <div class="co-body">
                 <div class="co-head">
-                  <span class="co-title">{{ course.title }}</span>
+                  <span class="co-title">{{ course.title }}{% if course.is_book %} <span class="co-tag">Book</span>{% endif %}</span>
                   <span class="co-pct mono">{{ course.progress|default:0 }}%</span>
                 </div>
                 <div class="bar bar-xs">
@@ -408,7 +442,9 @@
             <strong class="history-title">{{ s.course.title|default:'Free focus session' }}</strong>
             <div class="history-meta">
               <span>{{ s.started_at|date:'M j, H:i' }}</span>
-              {% if s.manual_seconds and s.course %}
+              {% if s.manual_pages and s.course %}
+                <span class="history-credited">· Read <b>{{ s.manual_pages }}p</b></span>
+              {% elif s.manual_seconds and s.course %}
                 <span class="history-credited">· Credited <b>{{ s.manual_hours }}h</b> to course</span>
               {% endif %}
             </div>

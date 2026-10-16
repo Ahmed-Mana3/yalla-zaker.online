@@ -48,11 +48,13 @@ def course_create(request):
         source = Course.objects.filter(slug=source_slug, is_public=True).first()
         if source:
             initial = {
+                'kind': source.kind,
                 'title': source.title,
                 'link': source.link,
                 'notes': source.notes,
                 'start_date': source.start_date,
                 'total_hours': source.total_hours,
+                'total_pages': source.total_pages,
             }
     form = CourseForm(request.POST or None, initial=initial)
     if request.method == 'POST' and form.is_valid():
@@ -64,7 +66,7 @@ def course_create(request):
         return redirect('course_detail', slug=course.slug)
     return render(request, 'courses/form.html', {
         'form': form,
-        'heading': 'Add a course',
+        'heading': 'Add a course or book',
         'source': source,
     })
 
@@ -94,7 +96,8 @@ def course_edit(request, slug):
         form.save()
         messages.success(request, 'Course saved.')
         return redirect('course_detail', slug=course.slug)
-    return render(request, 'courses/form.html', {'form': form, 'heading': 'Edit course', 'course': course})
+    heading = 'Edit book' if course.is_book() else 'Edit course'
+    return render(request, 'courses/form.html', {'form': form, 'heading': heading, 'course': course})
 
 
 @login_required
@@ -361,10 +364,12 @@ def roadmap_fork_step(request, slug, step_id):
 
     course = Course.objects.create(
         owner=request.user,
+        kind=source.kind if source else Course.KIND_COURSE,
         title=step.display_title(),
         link=step.link or (source.link if source else ''),
         notes=f'Forked from the roadmap "{roadmap.title}".',
         total_hours=step.planned_hours or (source.total_hours if source else 0),
+        total_pages=source.total_pages if source else 0,
         is_public=False,
         forked_from=source,
     )

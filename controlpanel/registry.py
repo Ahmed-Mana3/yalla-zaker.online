@@ -368,10 +368,13 @@ REGISTRY = (
         group='Study',
         columns=(
             C('title', 'Course'),
+            C('kind', 'Type'),
             C('owner', 'Owner', 'rel'),
             C('link', 'Link', 'url'),
             C('total_hours', 'Planned h', 'num'),
             C('hours_done', 'Earned h', 'num'),
+            C('total_pages', 'Pages', 'num'),
+            C('pages_done', 'Read', 'num'),
             C('is_public', 'Public', 'bool'),
             C('studysession_set', 'Sessions', 'count'),
             C('start_date', 'Starts', 'date'),

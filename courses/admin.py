@@ -23,4 +23,8 @@ class RoadmapCourseAdmin(admin.ModelAdmin):
     ordering = ('roadmap', 'position')
 
 
-admin.site.register(Course)
+@admin.register(Course)
+class CourseAdmin(admin.ModelAdmin):
+    list_display = ('title', 'owner', 'kind', 'total_hours', 'hours_done', 'total_pages', 'pages_done', 'is_public', 'created_at')
+    list_filter = ('kind', 'is_public')
+    search_fields = ('title',)

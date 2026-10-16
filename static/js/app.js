@@ -598,11 +598,12 @@
   var lamps = document.querySelectorAll('.lamp');
   Array.prototype.forEach.call(lamps, startLamp);
 
-  /* ---------- Check-in: simple minutes input with live course impact ---------- */
+  /* ---------- Check-in: simple amount input with live course/book impact ---------- */
   function initCheckin() {
-    var minInput = document.getElementById('log-minutes');
+    var minInput = document.getElementById('log-amount');
     if (!minInput) return;
 
+    var isBook = minInput.dataset.unit === 'pages';
     var quickPills = document.querySelectorAll('.quick-pill[data-add]');
     var asMeasuredBtn = document.querySelector('.quick-pill[data-as-measured]');
     var skipBtn = document.getElementById('skip-log');
@@ -617,23 +618,23 @@
     var scbBarFill = document.getElementById('scb-bar-fill');
     var scbRemain = document.getElementById('scb-remain');
 
-    function updatePreview(valMins) {
-      var m = Math.max(0, parseInt(valMins, 10) || 0);
-      var addedHours = Math.round((m / 60.0) * 100) / 100;
-      var newCredits = Math.round((credits + addedHours) * 100) / 100;
+    function updatePreview(valAmount) {
+      var m = Math.max(0, parseInt(valAmount, 10) || 0);
+      var added = isBook ? m : Math.round((m / 60.0) * 100) / 100;
+      var newCredits = isBook ? credits + added : Math.round((credits + added) * 100) / 100;
       var newPct = total > 0 ? Math.min(100, Math.round((newCredits / total) * 100)) : 0;
       var remaining = Math.max(0, Math.round((total - newCredits) * 100) / 100);
 
-      if (convHours) convHours.textContent = fmtNum(addedHours);
-      if (btnMinText) btnMinText.textContent = m + ' min';
-      if (scbDone) scbDone.textContent = fmtNum(newCredits) + 'h';
+      if (convHours) convHours.textContent = isBook ? m : fmtNum(added);
+      if (btnMinText) btnMinText.textContent = isBook ? m + ' pages' : m + ' min';
+      if (scbDone) scbDone.textContent = isBook ? newCredits + 'p' : fmtNum(newCredits) + 'h';
       if (scbPct) scbPct.textContent = newPct + '%';
       if (scbBarFill) scbBarFill.style.width = newPct + '%';
       if (scbRemain) {
         if (total > 0 && newCredits >= total) {
-          scbRemain.innerHTML = '🎉 <strong style="color:var(--color-blue)">Will complete this course!</strong>';
+          scbRemain.innerHTML = '🎉 <strong style="color:var(--color-blue)">Will complete this ' + (isBook ? 'book' : 'course') + '!</strong>';
         } else {
-          scbRemain.textContent = fmtNum(remaining) + 'h remaining';
+          scbRemain.textContent = isBook ? remaining + ' pages remaining' : fmtNum(remaining) + 'h remaining';
         }
       }
     }

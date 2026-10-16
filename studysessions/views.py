@@ -178,7 +178,9 @@ def session_end(request):
         has_course = bool(session.course)
         session.finish()
         ms = session.duration_seconds / 60
-        if has_course:
+        if has_course and session.course.is_book():
+            messages.success(request, f'Session finished — {ms:.0f} min clocked. How many pages did you read from the book?')
+        elif has_course:
             messages.success(request, f'Session finished — {ms:.0f} min clocked. How many minutes did you finish from the course?')
         else:
             session.checked_in = True
@@ -192,12 +194,15 @@ def session_end(request):
 
 @login_required
 def session_log(request):
-    """Check-in after a course session: ask how many course minutes/hours were completed."""
+    """Check-in after a session: ask how many minutes (course) or pages (book) were done."""
     if request.method != 'POST':
         return redirect('study')
     s = get_object_or_404(
         StudySession, pk=request.POST.get('session_id') or 0, user=request.user,
         status='finished', checked_in=False, course__isnull=False)
+
+    if s.course.is_book():
+        return _log_book(request, s)
 
     if request.POST.get('action') == 'skip':
         s.confirm_log(0)
@@ -248,6 +253,35 @@ def session_log(request):
     return redirect('study')
 
 
+def _plural(count, word):
+    return f'{count} {word}' + ('' if count == 1 else 's')
+
+
+def _log_book(request, s):
+    """Check-in for a book: credit pages read instead of minutes."""
+    book = s.course
+    if request.POST.get('action') == 'skip':
+        s.confirm_log(0, 0)
+        messages.info(request, f'No pages credited to “{book.title}”.')
+        return redirect('study')
+
+    raw = (request.POST.get('pages') or '').strip()
+    pages = 0
+    if raw:
+        try:
+            pages = max(0, min(int(float(raw)), 10000))
+        except (TypeError, ValueError):
+            pages = 0
+
+    s.confirm_log(0, pages)
+
+    if pages <= 0:
+        messages.info(request, f'Nothing logged to “{book.title}” this time.')
+    elif not book.is_active_course():
+        messages.success(request, f'🎉 Outstanding! You read {_plural(pages, "page")} and completed “{book.title}”!')
+    else:
+        messages.success(request, f'{_plural(pages, "page")} added to “{book.title}”. {_plural(book.remaining_amount(), "page")} to go.')
+    return redirect('study')
 
 
 @login_required

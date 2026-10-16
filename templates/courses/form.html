@@ -10,13 +10,27 @@
       {% if form.non_field_errors %}<div class="field-errors">{{ form.non_field_errors }}</div>{% endif %}
 
       <div class="field">
-        <label for="{{ form.title.id_for_label }}">Course title</label>
+        <label>What are you adding?</label>
+        <div class="seg-control" role="radiogroup" aria-label="Type">
+          {% for radio in form.kind %}
+          <label class="seg-option" for="{{ radio.id_for_label }}">
+            {{ radio.tag }}
+            <span>{{ radio.choice_label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <div class="help-text">Courses are measured in hours. Books are measured in pages.</div>
+        {% if form.kind.errors %}<div class="field-errors">{{ form.kind.errors }}</div>{% endif %}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.title.id_for_label }}">Title</label>
         {{ form.title }}
         {% if form.title.errors %}<div class="field-errors">{{ form.title.errors }}</div>{% endif %}
       </div>
 
       <div class="field">
-        <label for="{{ form.link.id_for_label }}">Course link</label>
+        <label for="{{ form.link.id_for_label }}">Link</label>
         {{ form.link }}
         {% if form.link.errors %}<div class="field-errors">{{ form.link.errors }}</div>{% endif %}
       </div>
@@ -27,13 +41,21 @@
           {{ form.start_date }}
           {% if form.start_date.errors %}<div class="field-errors">{{ form.start_date.errors }}</div>{% endif %}
         </div>
-        <div class="field">
+        <div class="field" id="field-total-hours">
           <label for="{{ form.total_hours.id_for_label }}">Course hours</label>
           {{ form.total_hours }}
           <div class="help-text">Total hours the course needs.</div>
+          {% if form.total_hours.errors %}<div class="field-errors">{{ form.total_hours.errors }}</div>{% endif %}
+        </div>
+        <div class="field" id="field-total-pages" hidden>
+          <label for="{{ form.total_pages.id_for_label }}">Book pages</label>
+          {{ form.total_pages }}
+          <div class="help-text">Total pages in the book.</div>
+          {% if form.total_pages.errors %}<div class="field-errors">{{ form.total_pages.errors }}</div>{% endif %}
         </div>
       </div>
-      <p class="help-text">The end date and the hours done are decided by the system — your study sessions feed the clock, and the course ends itself once that's done.</p>
+      <p class="help-text" id="help-hours">The end date and the hours done are decided by the system — your study sessions feed the clock, and the course ends itself once that's done.</p>
+      <p class="help-text" id="help-pages" hidden>Log pages after each reading session — the book ends itself once you reach the last page.</p>
 
       <div class="field">
         <label for="{{ form.notes.id_for_label }}">Notes</label>
@@ -46,10 +68,32 @@
       </label>
 
       <div class="form-actions">
-        <button class="btn btn-primary" type="submit">{% if course %}Save changes{% else %}Add course{% endif %}</button>
+        <button class="btn btn-primary" type="submit">{% if course %}Save changes{% else %}Add to desk{% endif %}</button>
         <a class="btn btn-ghost" href="{% url 'courses' %}">Cancel</a>
       </div>
     </form>
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var hours = document.getElementById('field-total-hours');
+  var pages = document.getElementById('field-total-pages');
+  var helpHours = document.getElementById('help-hours');
+  var helpPages = document.getElementById('help-pages');
+  var radios = document.querySelectorAll('input[name="kind"]');
+  if (!hours || !pages || !radios.length) return;
+  function sync() {
+    var sel = document.querySelector('input[name="kind"]:checked');
+    var book = sel && sel.value === 'book';
+    hours.hidden = book;
+    pages.hidden = !book;
+    if (helpHours) helpHours.hidden = book;
+    if (helpPages) helpPages.hidden = !book;
+  }
+  radios.forEach(function (r) { r.addEventListener('change', sync); });
+  sync();
+})();
+</script>
 {% endblock %}

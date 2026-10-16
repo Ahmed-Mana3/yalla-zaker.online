@@ -446,3 +446,59 @@ class AddToDeskTests(TestCase):
             response,
             f'href="{reverse("course_create")}?from={source.slug}"',
         )
+
+
+class BookTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='reader', password='password123')
+        self.client = Client()
+        self.client.login(username='reader', password='password123')
+
+    def test_create_book_via_form(self):
+        response = self.client.post(reverse('course_create'), {
+            'kind': 'book',
+            'title': 'Deep Work',
+            'link': '',
+            'notes': '',
+            'start_date': '2026-01-05',
+            'total_pages': '300',
+            'is_public': 'on',
+        })
+        book = Course.objects.get(owner=self.user, title='Deep Work')
+        self.assertTrue(book.is_book())
+        self.assertEqual(book.total_pages, 300)
+        self.assertRedirects(response, reverse('course_detail', kwargs={'slug': book.slug}))
+
+    def test_book_requires_page_target(self):
+        response = self.client.post(reverse('course_create'), {
+            'kind': 'book',
+            'title': 'No Pages',
+            'start_date': '2026-01-05',
+            'total_pages': '0',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Course.objects.filter(title='No Pages').exists())
+
+    def test_book_renders_across_pages(self):
+        book = Course.objects.create(
+            owner=self.user, kind=Course.KIND_BOOK, title='SICP', total_pages=200, pages_done=50,
+        )
+        self.assertContains(self.client.get(reverse('courses')), 'SICP')
+        detail = self.client.get(reverse('course_detail', kwargs={'slug': book.slug}))
+        self.assertContains(detail, 'SICP')
+        self.assertContains(detail, '50p')
+        public = self.client.get(reverse('public:course_public', kwargs={'slug': book.slug}))
+        self.assertContains(public, 'book')
+        form = self.client.get(reverse('course_create'))
+        self.assertContains(form, 'Books are measured in pages')
+
+    def test_book_progress_is_measured_in_pages(self):
+        book = Course.objects.create(owner=self.user, kind=Course.KIND_BOOK, title='SICP', total_pages=200)
+        self.assertEqual(book.progress(), 0)
+        book.add_pages(50)
+        self.assertEqual(book.pages_done, 50)
+        self.assertEqual(book.progress(), 25)
+        self.assertEqual(book.remaining_amount(), 150)
+        book.add_pages(150)
+        self.assertEqual(book.progress(), 100)
+        self.assertIsNotNone(book.end_date)

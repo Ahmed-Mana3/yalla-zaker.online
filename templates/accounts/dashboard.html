@@ -120,7 +120,7 @@
                 <i style="width: {{ course.progress|default:0 }}%"></i>
               </div>
               <div class="d3-progress-nums mono">
-                <span>{{ course.credits|hours }} / {{ course.total_hours|hours }}</span>
+                <span>{{ course.done_display }} / {{ course.goal_display }}</span>
                 <strong>{{ course.progress|default:0 }}%</strong>
               </div>
             </div>

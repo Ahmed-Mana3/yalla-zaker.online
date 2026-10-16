@@ -7,17 +7,28 @@ from django.utils import timezone
 
 
 class Course(models.Model):
+    KIND_COURSE = 'course'
+    KIND_BOOK = 'book'
+    KIND_CHOICES = [
+        (KIND_COURSE, 'Course'),
+        (KIND_BOOK, 'Book'),
+    ]
+
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='courses')
+    kind = models.CharField(max_length=8, choices=KIND_CHOICES, default=KIND_COURSE, verbose_name='Type')
     title = models.CharField(max_length=120)
     link = models.URLField(max_length=300, blank=True, verbose_name='Course link')
     slug = models.SlugField(max_length=160, unique=True, blank=True, editable=False)
     notes = models.TextField(blank=True)
     start_date = models.DateField(default=timezone.now)
-    # Set by the system on the day the done hours reach the total hours.
+    # Set by the system on the day the done amount reaches the goal.
     end_date = models.DateField(null=True, blank=True)
     total_hours = models.FloatField(default=0, verbose_name='Course hours')
     # Tracked by the system from finished study sessions; do not edit by hand.
     hours_done = models.FloatField(default=0)
+    # A book is measured in pages instead of hours.
+    total_pages = models.PositiveIntegerField(default=0, verbose_name='Book pages')
+    pages_done = models.PositiveIntegerField(default=0)
     is_public = models.BooleanField(default=True, verbose_name='Shareable by link')
     # Set when this course was forked from someone else's course or roadmap step.
     forked_from = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='forks')
@@ -41,25 +52,78 @@ class Course(models.Model):
         from django.utils.text import slugify
         return uuid.uuid4().hex[:10]
 
+    def is_book(self):
+        """A book is credited by pages; anything else by hours."""
+        return self.kind == self.KIND_BOOK
+
     def credits(self):
         """Hours earned from finished sessions, as tracked by the system."""
         return round(self.hours_done, 2)
 
+    def done_amount(self):
+        """How much is done, in this item's own unit."""
+        return self.pages_done if self.is_book() else self.credits()
+
+    def goal_amount(self):
+        """The target, in this item's own unit."""
+        return self.total_pages if self.is_book() else self.total_hours
+
     def progress(self):
-        if self.total_hours <= 0:
+        goal = self.goal_amount()
+        if not goal or goal <= 0:
             return None
-        return min(100, round(self.credits() / self.total_hours * 100))
+        return min(100, round(self.done_amount() / goal * 100))
 
     def remaining_hours(self):
         return max(0, round(self.total_hours - self.credits(), 2))
+
+    def remaining_amount(self):
+        """What is left to finish, in this item's own unit."""
+        left = self.goal_amount() - self.done_amount()
+        if self.is_book():
+            return max(0, int(round(left)))
+        return max(0, round(left, 2))
+
+    # ------------------------------------------------------------- display
+
+    def done_display(self):
+        if self.is_book():
+            return f'{self.pages_done:,}p'
+        return f'{self.credits():g}h'
+
+    def goal_display(self):
+        if self.is_book():
+            return f'{self.total_pages:,}p'
+        return f'{self.total_hours:g}h'
+
+    def remaining_display(self):
+        if self.is_book():
+            return f'{self.remaining_amount():,}p'
+        return f'{self.remaining_amount():g}h'
+
+    def unit_noun(self):
+        return 'book' if self.is_book() else 'course'
 
     def is_active_course(self):
         """On the desk until the system decides it is done (end_date set)."""
         return self.end_date is None
 
+    def add_pages(self, pages):
+        """Credit pages read to the book and end it if the target is reached."""
+        try:
+            pages = max(0, int(pages))
+        except (TypeError, ValueError):
+            pages = 0
+        if not pages:
+            return
+        self.pages_done = (self.pages_done or 0) + pages
+        self.save(update_fields=['pages_done'])
+        self.mark_complete_if_done()
+
     def mark_complete_if_done(self):
         """Called after a session is credited: decide the end date ourselves."""
-        if self.end_date is None and self.total_hours > 0 and self.credits() >= self.total_hours:
+        goal = self.goal_amount()
+        if self.end_date is None and goal and goal > 0 and self.done_amount() >= goal:
             self.end_date = timezone.now().date()
             self.save()
 

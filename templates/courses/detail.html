@@ -8,15 +8,16 @@
       <a href="{% url 'courses' %}" class="section-meta">&larr; All courses</a>
       <h1 style="margin-top:4px">
         {{ course.title }}
+        {% if course.is_book %}<span class="tag">book</span>{% endif %}
       </h1>
       {% if course.link %}
-      <a class="btn-ext" href="{{ course.link }}" target="_blank" rel="noopener" aria-label="Try the course">
+      <a class="btn-ext" href="{{ course.link }}" target="_blank" rel="noopener" aria-label="{% if course.is_book %}Open the book{% else %}Try the course{% endif %}">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
           <polyline points="15 3 21 3 21 9"/>
           <line x1="10" y1="14" x2="21" y2="3"/>
         </svg>
-        Try the course
+        {% if course.is_book %}Open book{% else %}Try the course{% endif %}
       </a>
       {% endif %}
     </div>
@@ -31,11 +32,11 @@
       <div class="panel-title"><h2>Progress</h2></div>
       <div class="bar" style="height:10px"><i style="width: {% if course.progress %}{{ course.progress }}{% else %}0{% endif %}%"></i></div>
       <div style="display:flex; justify-content:space-between; margin:10px 0 18px">
-        <span class="mono">{{ course.credits|hours }} / {{ course.total_hours|hours }}</span>
+        <span class="mono">{{ course.done_display }} / {{ course.goal_display }}</span>
         <span class="section-meta">{{ course.progress|default:0 }}%</span>
       </div>
 
-      <h3>Share this course</h3>
+      <h3>Share this {{ course.unit_noun }}</h3>
       <p class="section-meta">Anyone with the link can see it — no login needed.</p>
       {% if course.is_public %}
         <div class="field" style="display:flex; gap:8px">
@@ -63,11 +64,13 @@
         <div class="panel-title"><h2>Facts</h2></div>
         <ul class="subtle-list">
           <li>Started <strong>{{ course.start_date|date:'M j, Y' }}</strong></li>
-          <li>{{ course.total_hours|hours }} course —
+          <li>{{ course.goal_display }} {{ course.unit_noun }} —
             {% if course.end_date %}
               <strong>completed {{ course.end_date|date:'M j, Y' }}</strong>
+            {% elif course.is_book %}
+              ends itself once <strong>{{ course.remaining_display }} more</strong> are read
             {% else %}
-              ends itself once <strong>{{ course.remaining_hours|hours }} more</strong> are logged
+              ends itself once <strong>{{ course.remaining_display }} more</strong> are logged
             {% endif %}
           </li>
           <li>Status
@@ -115,7 +118,7 @@
       {% for s in sessions %}
       <li style="display:flex; justify-content:space-between; gap:12px">
         <span>{{ s.started_at|date:'M j, H:i' }} → {{ s.ended_at|date:'H:i' }}</span>
-        <span class="mono">{{ s.duration_seconds|dur }}</span>
+        <span class="mono">{% if s.manual_pages %}{{ s.manual_pages }}p · {% endif %}{{ s.duration_seconds|dur }}</span>
       </li>
       {% endfor %}
     </ul>

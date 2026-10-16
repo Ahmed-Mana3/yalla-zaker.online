@@ -79,7 +79,7 @@ class StudySessionFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'How many minutes did you finish from the course?')
         self.assertContains(response, 'Python Deep Dive')
-        self.assertContains(response, 'log-minutes')
+        self.assertContains(response, 'log-amount')
 
     def test_session_log_minutes(self):
         """User submits minutes completed (e.g. 90 min = 1.5h)."""
@@ -250,4 +250,62 @@ class StudySessionFlowTests(TestCase):
         session.refresh_from_db()
         self.assertTrue(session.checked_in)
         self.assertEqual(session.manual_seconds, 9999 * 60)
+
+
+class BookSessionTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='reader', password='password123')
+        self.client = Client()
+        self.client.login(username='reader', password='password123')
+        self.book = Course.objects.create(
+            owner=self.user, kind=Course.KIND_BOOK, title='Clean Code', total_pages=100,
+        )
+
+    def test_session_log_pages_credits_the_book(self):
+        session = StudySession.objects.create(
+            user=self.user, course=self.book,
+            status=StudySession.STATUS_FINISHED, duration_seconds=3600, checked_in=False,
+        )
+        response = self.client.post(reverse('session_log'), {
+            'session_id': session.id,
+            'pages': '40',
+        })
+        self.assertRedirects(response, reverse('study'))
+
+        session.refresh_from_db()
+        self.assertTrue(session.checked_in)
+        self.assertEqual(session.manual_pages, 40)
+        self.assertEqual(session.manual_seconds, 0)
+
+        self.book.refresh_from_db()
+        self.assertEqual(self.book.pages_done, 40)
+        self.assertEqual(self.book.progress(), 40)
+        self.assertIsNone(self.book.end_date)
+
+    def test_session_log_pages_completes_book_at_target(self):
+        session = StudySession.objects.create(
+            user=self.user, course=self.book,
+            status=StudySession.STATUS_FINISHED, duration_seconds=3600, checked_in=False,
+        )
+        self.client.post(reverse('session_log'), {
+            'session_id': session.id,
+            'pages': '100',
+        })
+        self.book.refresh_from_db()
+        self.assertEqual(self.book.pages_done, 100)
+        self.assertIsNotNone(self.book.end_date)
+
+    def test_session_log_pages_skip(self):
+        session = StudySession.objects.create(
+            user=self.user, course=self.book,
+            status=StudySession.STATUS_FINISHED, duration_seconds=3600, checked_in=False,
+        )
+        self.client.post(reverse('session_log'), {
+            'session_id': session.id,
+            'action': 'skip',
+        })
+        self.book.refresh_from_db()
+        self.assertEqual(self.book.pages_done, 0)
+        session.refresh_from_db()
+        self.assertTrue(session.checked_in)
 
